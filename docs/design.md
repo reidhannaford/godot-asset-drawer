@@ -2,7 +2,7 @@
 
 A lightweight Godot 4.7+ editor addon: a drawer of curated asset libraries, and a placement mode that stamps the picked asset into the open 3D scene. Pure GDScript, editor-only.
 
-It is a deliberately small take on [AssetPlacer](https://cookiebadger.itch.io/assetplacer). This file is the design record: what's in, what's out, and why each decision went the way it did. Dates mark when a decision was made or checked. For how to use the addon, see the [README](../README.md); for how to work on it, see [development.md](development.md).
+This file is the design record: what's in, what's out, and why each decision went the way it did. Dates mark when a decision was made or checked. For how to use the addon, see the [README](../README.md); for how to work on it, see [development.md](development.md).
 
 ## In scope
 

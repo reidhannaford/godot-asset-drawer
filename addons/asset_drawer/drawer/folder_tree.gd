@@ -193,6 +193,6 @@ func _gui_input(event: InputEvent) -> void:
 	if key.keycode == KEY_F2 or (key.keycode == KEY_ENTER and OS.get_name() == "macOS"):
 		begin_rename(folder)
 		accept_event()
-	elif key.keycode == KEY_DELETE and folder != _library:
+	elif (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE) and folder != _library:
 		delete_requested.emit(folder)
 		accept_event()

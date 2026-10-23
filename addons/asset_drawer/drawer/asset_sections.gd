@@ -97,9 +97,10 @@ func highlight(entry: AssetDrawerEntry) -> void:
 
 
 func set_icon(path: String, icon: Texture2D) -> void:
+	var uid := ResourceUID.path_to_uid(path)
 	for grid: AssetGrid in _grids:
 		for index: int in grid.item_count:
-			if grid.entry_at(index).resolve_path() == path:
+			if grid.entry_at(index).uid == uid:
 				grid.set_item_icon(index, icon)
 
 
@@ -169,10 +170,12 @@ func deselect_all() -> void:
 		grid.deselect_all()
 
 
-## A plain click selects in one grid only, like one big grid would.
+## A plain click selects in one grid only, like one big grid would. So does
+## a right-click on a tile that wasn't selected, which ItemList then selects.
 func _on_tile_pressed(grid: AssetGrid, index: int, at_position: Vector2, mouse_button_index: int) -> void:
 	var adding := Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_META) or Input.is_key_pressed(KEY_CTRL)
-	if not adding and mouse_button_index == MOUSE_BUTTON_LEFT:
+	var keeps_others := adding or (mouse_button_index == MOUSE_BUTTON_RIGHT and grid.is_selected(index))
+	if not keeps_others:
 		for other: AssetGrid in _grids:
 			if other != grid:
 				other.deselect_all()

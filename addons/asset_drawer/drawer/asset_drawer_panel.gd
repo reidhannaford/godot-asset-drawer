@@ -301,9 +301,13 @@ func _close_active() -> void:
 
 
 func _save_active() -> void:
-	var error := ResourceSaver.save(_active)
+	_save_library(_active)
+
+
+func _save_library(library: AssetDrawerLibrary) -> void:
+	var error := ResourceSaver.save(library)
 	if error != OK:
-		push_error("Asset Drawer: couldn't save %s (%s)." % [_active.resource_path, error_string(error)])
+		push_error("Asset Drawer: couldn't save %s (%s)." % [library.resource_path, error_string(error)])
 
 
 # Remembering open libraries
@@ -531,13 +535,49 @@ func _on_entries_moved(entries: Array[AssetDrawerEntry], before: AssetDrawerEntr
 	_sections.select_entries(entries)
 
 
+## Removes the selected tiles from the library as one undoable action in the
+## editor's global history, so a stray Delete can be taken back.
 func _remove_selected() -> void:
 	var selected := _sections.selected_entries()
 	if selected.is_empty():
 		return
-	_active.remove(selected)
-	_save_active()
-	_rebuild_grid()
+	var library := _active
+	# Where each entry sits now, in folder order, so undo can put them back.
+	var places: Array[Dictionary] = []
+	for entry: AssetDrawerEntry in selected:
+		var folder := library.folder_of(entry)
+		if folder != null:
+			places.append({"folder": folder, "index": folder.entries.find(entry), "entry": entry})
+	places.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a["index"] as int) < (b["index"] as int))
+
+	var undo_redo := EditorInterface.get_editor_undo_redo()
+	var what := selected[0].display_name() if selected.size() == 1 else "%d assets" % selected.size()
+	undo_redo.create_action("Remove %s from %s" % [what, library.display_name()], UndoRedo.MERGE_DISABLE, library)
+	undo_redo.add_do_method(self, &"_apply_removal", library, selected)
+	undo_redo.add_undo_method(self, &"_apply_restore", library, places)
+	undo_redo.commit_action()
+	EditorInterface.get_editor_toaster().push_toast(
+			"Removed %s from %s. Undo puts it back." % [what, library.display_name()])
+
+
+func _apply_removal(library: AssetDrawerLibrary, entries: Array[AssetDrawerEntry]) -> void:
+	library.remove(entries)
+	_save_library(library)
+	if library == _active:
+		_rebuild_grid()
+
+
+func _apply_restore(library: AssetDrawerLibrary, places: Array[Dictionary]) -> void:
+	for place: Dictionary in places:
+		var folder := place["folder"] as AssetDrawerFolder
+		var entry := place["entry"] as AssetDrawerEntry
+		if folder.entries.has(entry):
+			continue
+		folder.entries.insert(mini(place["index"] as int, folder.entries.size()), entry)
+	library.emit_changed()
+	_save_library(library)
+	if library == _active:
+		_rebuild_grid()
 
 
 func _on_item_clicked(index: int, at_position: Vector2, mouse_button_index: int, grid: AssetGrid = null) -> void:
@@ -546,10 +586,17 @@ func _on_item_clicked(index: int, at_position: Vector2, mouse_button_index: int,
 	if mouse_button_index == MOUSE_BUTTON_LEFT:
 		_on_tile_left_clicked(grid, index)
 		return
-	if mouse_button_index != MOUSE_BUTTON_RIGHT:
-		return
+	if mouse_button_index == MOUSE_BUTTON_RIGHT:
+		# Deferred: ItemList updates the selection after this press, and the
+		# menu's state depends on what ends up selected.
+		_show_tile_menu.call_deferred(grid, at_position)
+
+
+## Opens the tile context menu at [param at_position] in [param grid], with
+## Show in FileSystem enabled only for a single, present asset.
+func _show_tile_menu(grid: AssetGrid, at_position: Vector2) -> void:
 	var selected := _sections.selected_entries()
-	var single_path := grid.entry_at(index).resolve_path() if selected.size() == 1 else ""
+	var single_path := selected[0].resolve_path() if selected.size() == 1 else ""
 	_menu.set_item_disabled(_menu.get_item_index(MenuItem.SHOW_IN_FILESYSTEM), single_path.is_empty())
 	_menu.position = Vector2i(grid.get_screen_position() + at_position)
 	_menu.reset_size()

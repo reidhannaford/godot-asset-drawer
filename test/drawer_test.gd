@@ -107,9 +107,39 @@ func _run_one() -> void:
 	_grid.call("select", 0)
 	_panel.call("_remove_selected")
 	_check("remove while filtered", _names() == PackedStringArray(["barrel"]), _names())
+	var history := EditorInterface.get_editor_undo_redo().get_history_undo_redo(EditorUndoRedoManager.GLOBAL_HISTORY)
+	_check("removal is in the global undo history", history.has_undo() and history.get_current_action_name().begins_with("Remove pillar"),
+			history.get_current_action_name())
+	history.undo()
+	_check("undo puts the asset back where it was", _lib_names(lib) == PackedStringArray(["pillar", "rock", "crate", "barrel"])
+			and _names() == PackedStringArray(["pillar", "barrel"]), [_lib_names(lib), _names()])
+	history.redo()
+	_check("redo removes it again", _names() == PackedStringArray(["barrel"]), _names())
 	filter.text = ""
 	_panel.call("_on_filter_changed", "")
 	_check("filter cleared", _names() == PackedStringArray(["rock", "crate", "barrel"]), _names())
+
+	# The tile menu decides its state after ItemList has updated the selection.
+	var menu: PopupMenu = _panel.get("_menu")
+	var show_item: int = menu.get_item_index(1)
+	_grid.call("deselect_all")
+	_grid.call("force_update_list_size")
+	var rmb := InputEventMouseButton.new()
+	rmb.button_index = MOUSE_BUTTON_RIGHT
+	rmb.pressed = true
+	rmb.position = (_grid.call("_visible_item_rect", 1) as Rect2).get_center()
+	_grid.call("_gui_input", rmb)
+	_grid.call("select", 1)  # What ItemList does with this press, after _gui_input.
+	await process_frame
+	_check("right-click on an unselected tile enables Show in FileSystem", menu.visible and not menu.is_item_disabled(show_item),
+			[menu.visible, menu.is_item_disabled(show_item)])
+	menu.hide()
+	_grid.call("select", 0, false)
+	_grid.call("_gui_input", rmb)
+	await process_frame
+	_check("right-click with two selected disables Show in FileSystem", menu.is_item_disabled(show_item))
+	menu.hide()
+	_grid.call("deselect_all")
 
 	var on_disk: Variant = ResourceLoader.load(LIB_A, "", ResourceLoader.CACHE_MODE_IGNORE)
 	_check("saved to disk", _lib_names(on_disk) == PackedStringArray(["rock", "crate", "barrel"]), _lib_names(on_disk))
@@ -312,9 +342,13 @@ func _folder_checks() -> void:
 	_check("folder can't go inside its child", not lib.call("move_folder", pickups, items, null))
 	lib.call("move_folder", items, lib, pickups)
 
-	# Deleting a folder keeps its assets.
-	_panel.call("_on_folder_selected", level)
-	_panel.call("_delete_folder", level)
+	# Deleting a folder keeps its assets. Backspace counts as Delete, as it's
+	# the Delete key on Mac keyboards.
+	(tree.call("item_for", level) as TreeItem).select(0)
+	var backspace := InputEventKey.new()
+	backspace.keycode = KEY_BACKSPACE
+	backspace.pressed = true
+	tree.call("_gui_input", backspace)
 	_check("deleted folder's assets move up", _describe(lib) == EXPECTED_FOLDERS and _panel.call("selected_folder") == lib, _describe(lib))
 	var on_disk: Variant = ResourceLoader.load(LIB_B, "", ResourceLoader.CACHE_MODE_IGNORE)
 	_check("folders saved to disk", _describe(on_disk) == EXPECTED_FOLDERS, _describe(on_disk))

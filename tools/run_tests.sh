@@ -14,7 +14,10 @@ backup="$home/project_metadata.cfg"
 
 [[ -f "$metadata" ]] && mv "$metadata" "$backup"
 cleanup() {
-	rm -f "$here"/test_tmp_*.tres "$metadata"
+	# A run that dies mid-way can leave drawer_test's moved prop renamed.
+	[[ -f "$here/test/props/boulder.tscn" ]] && mv "$here/test/props/boulder.tscn" "$here/test/props/rock.tscn"
+	[[ -f "$here/test_tmp_hidden.txt" ]] && mv "$here/test_tmp_hidden.txt" "$here/test/props/rock.tscn"
+	rm -f "$here"/test_tmp_* "$metadata"
 	[[ -f "$backup" ]] && mv "$backup" "$metadata"
 	rm -rf "$home"
 }

@@ -65,11 +65,12 @@ func ghost() -> Node3D:
 
 
 ## Starts placing the scene at [param path]. Returns false, with a warning,
-## when no scene is open or the asset's root isn't a Node3D.
+## when no scene is open, the open scene is 2D, or the asset's root isn't a
+## Node3D.
 func start(path: String) -> bool:
 	stop()
 	var root := EditorInterface.get_edited_scene_root()
-	if root == null:
+	if root == null or root is CanvasItem:
 		push_warning("Asset Drawer: open a 3D scene to place assets in.")
 		return false
 	var scene := ResourceLoader.load(path) as PackedScene

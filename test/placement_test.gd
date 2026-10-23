@@ -6,6 +6,7 @@ extends SceneTree
 const LEVEL := "res://test/test_level.tscn"
 const CRATE := "res://test/props/crate.tscn"
 const NODE_ROOT_SCENE := "res://test_tmp_node_root.tscn"
+const SCENE_2D := "res://test_tmp_2d.tscn"
 
 var _frame := 0
 var _failures := 0
@@ -66,6 +67,8 @@ func _history() -> UndoRedo:
 func _run() -> void:
 	_placer = root.find_children("AssetDrawerPlacer", "", true, false)[0]
 	_panel = root.find_children("AssetDrawer", "VBoxContainer", true, false)[0]
+	# The arming checks need the dock on screen, whatever layout the editor saved.
+	(_panel.get_parent() as Node).call("make_visible")
 	var level := EditorInterface.get_edited_scene_root() as Node3D
 	_check("level open", level != null and level.scene_file_path == LEVEL)
 	print("PHYSICS ", ProjectSettings.get_setting("physics/3d/physics_engine"))
@@ -190,6 +193,7 @@ func _run() -> void:
 	DirAccess.remove_absolute(NODE_ROOT_SCENE)
 
 	await _drawer_arming()
+	await _scene_2d_refused()
 
 	_camera.queue_free()
 	print("FAILURES ", _failures)
@@ -249,6 +253,24 @@ func _drawer_arming() -> void:
 	_check("closing the library stops placing", not _placer.call("is_placing"))
 	DirAccess.remove_absolute("res://test_tmp_arming.tres")
 	await process_frame
+
+
+## A 2D scene can't take 3D assets, however the drawer is used.
+func _scene_2d_refused() -> void:
+	var control := Control.new()
+	control.name = "Menu"
+	var packed := PackedScene.new()
+	packed.pack(control)
+	control.free()
+	ResourceSaver.save(packed, SCENE_2D)
+	EditorInterface.open_scene_from_path(SCENE_2D)
+	for i: int in 60:
+		if EditorInterface.get_edited_scene_root() is Control:
+			break
+		await process_frame
+	_check("2D scene is open", EditorInterface.get_edited_scene_root() is Control)
+	_check("placing into a 2D scene is refused", not _placer.call("start", CRATE) and not _placer.call("is_placing"))
+	DirAccess.remove_absolute(SCENE_2D)
 
 
 func _near(a: Vector3, b: Vector3) -> bool:

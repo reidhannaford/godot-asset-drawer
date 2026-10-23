@@ -25,6 +25,8 @@ func _init(root: Node) -> void:
 ## {position, normal} in world space, or an empty dictionary on a miss. The
 ## normal always faces back toward [param from], even on a back face.
 func cast(from: Vector3, to: Vector3) -> Dictionary:
+	if not is_instance_valid(_root):
+		return {}
 	var direction := to - from
 	var nearest := {}
 	var nearest_distance := INF

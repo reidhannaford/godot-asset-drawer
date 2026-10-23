@@ -31,6 +31,7 @@ func _enter_tree() -> void:
 	_panel.asset_disarmed.connect(_on_asset_disarmed)
 	_placer.stopped.connect(_on_placement_stopped)
 	scene_changed.connect(_on_scene_changed)
+	scene_closed.connect(_on_scene_closed)
 	set_input_event_forwarding_always_enabled()
 
 	_dock = EditorDock.new()
@@ -44,14 +45,17 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	_placer.stop()
-	remove_dock(_dock)
-	# Freed now rather than queued: at editor shutdown the queue never runs,
-	# and the thumbnail viewport inside must go before the renderer does.
-	_dock.free()
+	if _placer != null:
+		_placer.stop()
+	if _dock != null:
+		remove_dock(_dock)
+		# Freed now rather than queued: at editor shutdown the queue never
+		# runs, and the thumbnail viewport inside must go before the renderer.
+		_dock.free()
 	_dock = null
 	_panel = null
-	_placer.free()
+	if _placer != null:
+		_placer.free()
 	_placer = null
 
 
@@ -77,4 +81,8 @@ func _on_placement_stopped() -> void:
 
 
 func _on_scene_changed(_scene_root: Node) -> void:
+	_placer.cancel()
+
+
+func _on_scene_closed(_path: String) -> void:
 	_placer.cancel()

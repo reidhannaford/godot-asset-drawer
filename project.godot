@@ -12,6 +12,7 @@ config_version=5
 
 config/name="Asset Drawer"
 config/features=PackedStringArray("4.7", "Forward Plus")
+config/icon="res://icon.svg"
 
 [editor_plugins]
 

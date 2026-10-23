@@ -18,7 +18,7 @@ Godot is `/Applications/Godot 4.7.2.app/Contents/MacOS/Godot`. Run headless chec
 HOME=<scratch> "/Applications/Godot 4.7.2.app/Contents/MacOS/Godot" --headless --editor --path . -s <script.gd>
 ```
 
-A `-s` script extending `SceneTree` can find the dock with `root.find_children("*", "EditorDock", true, false)`. Viewport input (hovering, clicking) needs a real editor session.
+`tools/run_tests.sh` runs the drawer tests this way; extend `test/drawer_test.gd` for new behaviour. Project metadata (open libraries, thumbnail size) lives in `.godot/editor/project_metadata.cfg`, not HOME, so the runner backs it up and restores it. ItemList item rects only lay out on draw, which never happens headless; call `force_update_list_size()` before using positions. A `-s` script extending `SceneTree` can find the dock with `root.find_children("*", "EditorDock", true, false)`. Thumbnails never arrive headless. To see them, run the editor windowed (`--editor --resolution 1600x900 -s capture.gd`, with the scratch HOME) and save `root.get_texture().get_image()`. Viewport input (hovering, clicking) needs a real editor session.
 
 ## Git
 

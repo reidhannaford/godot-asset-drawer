@@ -8,17 +8,18 @@ It is a deliberately small take on [AssetPlacer](https://cookiebadger.itch.io/as
 
 ### Libraries
 
-- A library is an `AssetDrawerLibrary` resource saved as `.tres` anywhere in the project. It holds a display name and an ordered list of assets.
-- Assets are stored by `uid://`, so moving files doesn't break a library, and opening one doesn't load every model. A uid that no longer resolves shows as a broken tile with its last known path, rather than disappearing silently.
-- Accepted types: scenes (`.tscn`/`.scn`) and imported models (`.glb`/`.gltf`), all of which load as `PackedScene`. Anything else dropped on the drawer is rejected with a warning.
+- A library is an `AssetDrawerLibrary` resource saved as `.tres` anywhere in the project, holding an ordered list of `AssetDrawerEntry` sub-resources. Its file name is its display name, so renaming the file in the FileSystem dock renames the library. Each entry has room for per-asset settings later.
+- Assets are stored by `uid://`, so moving files doesn't break a library, and opening one doesn't load every model. A uid that no longer resolves shows as a broken tile with its last known path, rather than disappearing silently. A file with no uid (a hand-written `.tscn`) is stored by path, and switched to its uid once it has one.
+- Accepted types: anything the editor imports as a `PackedScene`. That means scenes (`.tscn`/`.scn`) and models (`.glb`/`.gltf`), plus `.fbx`/`.blend` at no extra cost. Anything else dropped on the drawer is rejected with a warning. Dropping a folder adds every scene inside it, recursively.
 - The drawer toolbar has a library switcher (dropdown) plus new / open / close library actions. The set of open libraries and the active one are remembered per project with `EditorSettings.set_project_metadata`.
-- Add assets by dragging files from the FileSystem dock onto the grid. Remove them from the tile's context menu, and reorder by dragging tiles.
+- Add assets by dragging files from the FileSystem dock onto the grid, at the drop marker. Dropping an asset that's already in the library moves it instead of duplicating it. Remove assets with Delete or the tile's context menu, and reorder them by dragging tiles (multi-select works). A tile dragged out of the drawer looks like a FileSystem drag, so the 3D viewport and Scene dock will instance it.
 - A text filter over asset names. It's cheap, and libraries grow.
 
 ### Drawer
 
 - An `EditorDock` that defaults to the bottom panel and can be moved to a side dock or floated (`DOCK_LAYOUT_ALL`).
-- A thumbnail grid that uses Godot's built-in previews (`EditorInterface.get_resource_previewer()`), the same images the FileSystem dock shows. Thumbnail size is adjustable with a slider.
+- A thumbnail grid that uses Godot's built-in previewer (`EditorInterface.get_resource_previewer()`). Thumbnail size is adjustable with a slider and remembered.
+- The previewer only has file thumbnails for scenes saved in the editor, and none at all for imported models; this was checked in 4.7.2. When a file has no thumbnail, the drawer previews the largest mesh the scene uses directly. Meshes inside instanced sub-scenes aren't searched. The previewer renders at 64 px, so large thumbnail sizes look soft.
 - Custom-rendered previews are out of scope for now, but the tile should get its texture from one function so a custom renderer can be swapped in later.
 
 ### Placement
@@ -65,7 +66,7 @@ Per-user settings, such as the shortcuts and the last-used toolbar values, live 
 
 ## Milestones
 
-1. **Libraries and drawer:** the library resource, the dock grid with previews, drag-in from the FileSystem, remove and reorder, the switcher, the filter, remembered open libraries.
+1. **Libraries and drawer** (done 2026-10-23): the library resource, the dock grid with previews, drag-in from the FileSystem, remove and reorder, the switcher, the filter, remembered open libraries.
 2. **Stamping on colliders:** placement mode, the ghost, the physics raycast, click to place, undo, parenting.
 3. **Mesh hits and align to normal.**
 4. **Transform helpers:** rotate and flip shortcuts, scroll to rotate, random rotation and scale, grid snap.
@@ -73,4 +74,4 @@ Per-user settings, such as the shortcuts and the last-used toolbar values, live 
 
 ## Testing
 
-`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. Script-level checks run headlessly with `godot --headless --editor --path . -s <script>`. Viewport interaction needs a real editor session.
+`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. `tools/run_tests.sh` runs `test/drawer_test.gd` headlessly in two passes: libraries, drops, reordering, the filter, restoring from metadata, and moved or missing assets. Viewport interaction needs a real editor session.

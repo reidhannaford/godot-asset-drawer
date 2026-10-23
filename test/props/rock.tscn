@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b8v3tbndgg602"]
 
 [sub_resource type="SphereMesh" id="SphereMesh_r53sb"]
 height = 0.8

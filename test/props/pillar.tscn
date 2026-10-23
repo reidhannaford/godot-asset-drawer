@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://vvpdaxk205nf"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_ua08x"]
 top_radius = 0.3

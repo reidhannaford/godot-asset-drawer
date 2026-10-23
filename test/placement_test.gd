@@ -212,6 +212,23 @@ func _drawer_arming() -> void:
 
 	_panel.call("_on_item_clicked", 0, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	grid.emit_signal("escape_pressed")
+	await process_frame
+	_check("letting go clears the tile selection", (grid.call("get_selected_items") as PackedInt32Array).is_empty())
+
+	# A press on a tile that's already selected still arms it (ItemList holds
+	# back item_clicked for those).
+	await process_frame
+	grid.call("force_update_list_size")
+	grid.call("select", 0)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = (grid.call("_visible_item_rect", 0) as Rect2).get_center()
+	grid.call("_gui_input", press)
+	_check("pressing an already-selected tile arms it", _placer.call("is_placing") and _panel.call("armed_entry") == grid.call("entry_at", 0))
+	_placer.call("cancel")
+	await process_frame
+	_check("Esc in the viewport clears the tile selection", (grid.call("get_selected_items") as PackedInt32Array).is_empty() and _panel.call("armed_entry") == null)
 	_check("esc in the drawer lets go", not _placer.call("is_placing") and _panel.call("armed_entry") == null)
 	_check("placement row hides after", not hint.is_visible_in_tree())
 
@@ -394,6 +411,12 @@ func _transform_checks(level: Node3D) -> void:
 		var scale := before.basis.get_scale().x
 		all_in_range = all_in_range and scale >= 0.5 - 0.001 and scale <= 2.0 + 0.001
 	_check("random copies match the ghost", all_match)
+	var shown_before := ghost.global_transform
+	_check("D re-rolls while random is on", _placer.call("handle_key", _key(KEY_D)) and not ghost.global_transform.basis.is_equal_approx(shown_before.basis),
+			[shown_before.basis, ghost.global_transform.basis])
+	settings.set("random_enabled", false)
+	_check("D passes through with random off", not _placer.call("handle_key", _key(KEY_D)))
+	settings.set("random_enabled", true)
 	_check("random scale in range", all_in_range, shown)
 	_check("each click re-rolls", not shown[0].basis.is_equal_approx(shown[1].basis) and not shown[1].basis.is_equal_approx(shown[2].basis))
 	var top := level.get_child(level.get_child_count() - 1) as Node3D

@@ -46,10 +46,12 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	_placer.stop()
 	remove_dock(_dock)
-	_dock.queue_free()
+	# Freed now rather than queued: at editor shutdown the queue never runs,
+	# and the thumbnail viewport inside must go before the renderer does.
+	_dock.free()
 	_dock = null
 	_panel = null
-	_placer.queue_free()
+	_placer.free()
 	_placer = null
 
 

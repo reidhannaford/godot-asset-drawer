@@ -15,6 +15,7 @@ signal asset_disarmed
 const AssetGrid := preload("asset_grid.gd")
 const AssetSections := preload("asset_sections.gd")
 const FolderTree := preload("folder_tree.gd")
+const ThumbnailRenderer := preload("thumbnail_renderer.gd")
 
 const METADATA_SECTION := "asset_drawer"
 const ASSET_TYPE := "PackedScene"
@@ -22,7 +23,7 @@ const MIN_THUMBNAIL := 32
 const MAX_THUMBNAIL := 192
 const NEW_FOLDER_NAME := "New Folder"
 
-enum MenuItem { REMOVE, SHOW_IN_FILESYSTEM }
+enum MenuItem { REMOVE, SHOW_IN_FILESYSTEM, REGENERATE_THUMBNAIL }
 
 var _libraries: Array[AssetDrawerLibrary] = []
 var _active: AssetDrawerLibrary
@@ -30,9 +31,7 @@ var _active: AssetDrawerLibrary
 var _folder: AssetDrawerFolder
 ## The tile being placed, if any.
 var _armed: AssetDrawerEntry
-## Built-in previews by asset path, filled in as the previewer answers.
-var _previews: Dictionary[String, Texture2D] = {}
-var _pending_previews: Dictionary[String, bool] = {}
+var _thumbnails: ThumbnailRenderer
 
 var _toolbar: HFlowContainer
 var _switcher: OptionButton
@@ -132,8 +131,13 @@ func _init() -> void:
 	_menu = PopupMenu.new()
 	_menu.add_item("Remove from Library", MenuItem.REMOVE)
 	_menu.add_item("Show in FileSystem", MenuItem.SHOW_IN_FILESYSTEM)
+	_menu.add_item("Regenerate Thumbnail", MenuItem.REGENERATE_THUMBNAIL)
 	_menu.id_pressed.connect(_on_menu_id_pressed)
 	add_child(_menu)
+
+	_thumbnails = ThumbnailRenderer.new()
+	_thumbnails.thumbnail_ready.connect(_sections.set_icon)
+	add_child(_thumbnails)
 
 	_new_dialog = _make_dialog(EditorFileDialog.FILE_MODE_SAVE_FILE, "New Asset Library")
 	_new_dialog.file_selected.connect(_create_library)
@@ -143,7 +147,6 @@ func _init() -> void:
 
 func _ready() -> void:
 	EditorInterface.get_resource_filesystem().filesystem_changed.connect(_refresh)
-	EditorInterface.get_resource_previewer().preview_invalidated.connect(_on_preview_invalidated)
 	_restore()
 
 
@@ -157,6 +160,8 @@ func _notification(what: int) -> void:
 		_menu.set_item_icon(_menu.get_item_index(MenuItem.REMOVE), get_theme_icon(&"Remove", &"EditorIcons"))
 		_menu.set_item_icon(_menu.get_item_index(MenuItem.SHOW_IN_FILESYSTEM),
 				get_theme_icon(&"ShowInFileSystem", &"EditorIcons"))
+		_menu.set_item_icon(_menu.get_item_index(MenuItem.REGENERATE_THUMBNAIL),
+				get_theme_icon(&"Reload", &"EditorIcons"))
 		if is_node_ready():
 			_refresh()
 
@@ -202,11 +207,14 @@ func armed_entry() -> AssetDrawerEntry:
 	return _armed
 
 
-## Clears the armed tile without emitting [signal asset_disarmed], for when
-## placement ended somewhere else.
+## Clears the armed tile and the tile selection, without emitting
+## [signal asset_disarmed], for when placement ended somewhere else.
 func disarm() -> void:
 	_armed = null
 	_sections.highlight(null)
+	# Deferred: when a click on the armed tile lets go, ItemList selects that
+	# tile after this runs.
+	_sections.deselect_all.call_deferred()
 
 
 func _arm(entry: AssetDrawerEntry) -> void:
@@ -453,63 +461,11 @@ func _rebuild_grid() -> void:
 func _icon_for(path: String) -> Texture2D:
 	if path.is_empty():
 		return get_theme_icon(&"FileBroken", &"EditorIcons")
-	if _previews.has(path):
-		return _previews[path]
-	if not _pending_previews.has(path):
-		_pending_previews[path] = true
-		EditorInterface.get_resource_previewer().queue_resource_preview(path, self, &"_on_file_preview", null)
+	var thumbnail := _thumbnails.cached(path)
+	if thumbnail != null:
+		return thumbnail
+	_thumbnails.request(path)
 	return get_theme_icon(&"PackedScene", &"EditorIcons")
-
-
-func _on_file_preview(path: String, preview: Texture2D, _thumbnail: Texture2D, _userdata: Variant) -> void:
-	if preview != null:
-		_show_preview(path, preview)
-		return
-	# The previewer only has thumbnails of scenes saved in the editor, and
-	# none of imported models; fall back to previewing the scene's mesh.
-	var mesh := _largest_mesh(path)
-	if mesh == null:
-		_pending_previews.erase(path)
-		return
-	EditorInterface.get_resource_previewer().queue_edited_resource_preview(mesh, self, &"_on_mesh_preview", path)
-
-
-func _on_mesh_preview(_id: String, preview: Texture2D, _thumbnail: Texture2D, path: Variant) -> void:
-	if preview != null:
-		_show_preview(path as String, preview)
-	else:
-		_pending_previews.erase(path as String)
-
-
-## The biggest mesh the scene at [param path] uses directly, or null. Meshes
-## inside instanced sub-scenes aren't searched.
-func _largest_mesh(path: String) -> Mesh:
-	var scene := ResourceLoader.load(path) as PackedScene
-	if scene == null:
-		return null
-	var state := scene.get_state()
-	var largest: Mesh = null
-	var largest_extent := -1.0
-	for node: int in state.get_node_count():
-		for property: int in state.get_node_property_count(node):
-			var value: Variant = state.get_node_property_value(node, property)
-			if value is Mesh:
-				var extent := (value as Mesh).get_aabb().size.length()
-				if extent > largest_extent:
-					largest = value as Mesh
-					largest_extent = extent
-	return largest
-
-
-func _show_preview(path: String, preview: Texture2D) -> void:
-	_pending_previews.erase(path)
-	_previews[path] = preview
-	_sections.set_icon(path, preview)
-
-
-func _on_preview_invalidated(path: String) -> void:
-	if _previews.erase(path):
-		_rebuild_grid()
 
 
 ## Files the assets among [param paths] in [param folder] (the selected one
@@ -620,3 +576,8 @@ func _on_menu_id_pressed(id: int) -> void:
 			var selected := _sections.selected_entries()
 			if selected.size() == 1:
 				EditorInterface.get_file_system_dock().navigate_to_path(selected[0].resolve_path())
+		MenuItem.REGENERATE_THUMBNAIL:
+			for entry: AssetDrawerEntry in _sections.selected_entries():
+				var path := entry.resolve_path()
+				if not path.is_empty():
+					_thumbnails.regenerate(path)

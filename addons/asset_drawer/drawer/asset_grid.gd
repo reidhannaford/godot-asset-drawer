@@ -12,6 +12,9 @@ signal files_dropped(paths: PackedStringArray, before: AssetDrawerEntry)
 signal entries_moved(entries: Array[AssetDrawerEntry], before: AssetDrawerEntry)
 signal delete_pressed
 signal escape_pressed
+## A tile was pressed with the left or right button. Unlike ItemList's
+## item_clicked, this fires for a tile that's already selected too.
+signal tile_pressed(index: int, at_position: Vector2, mouse_button_index: int)
 
 ## Key the grid adds to its own drag data so it can tell a reorder from a
 ## FileSystem drop. The rest of the data looks like a FileSystem drag, so
@@ -77,6 +80,14 @@ func highlight(entry: AssetDrawerEntry) -> void:
 func _gui_input(event: InputEvent) -> void:
 	if _scroll_parent_with(event):
 		accept_event()
+		return
+	var button := event as InputEventMouseButton
+	if button != null and button.pressed and not button.double_click \
+			and (button.button_index == MOUSE_BUTTON_LEFT or button.button_index == MOUSE_BUTTON_RIGHT):
+		var index := get_item_at_position(button.position, true)
+		if index != -1:
+			# Not accepted, so ItemList still updates the selection after this.
+			tile_pressed.emit(index, button.position, button.button_index)
 		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:

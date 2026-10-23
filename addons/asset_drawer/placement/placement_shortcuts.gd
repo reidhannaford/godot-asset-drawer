@@ -3,7 +3,7 @@ extends RefCounted
 ## The placement keys. Each is an editor shortcut under asset_drawer/, so it
 ## can be rebound in Editor Settings > Shortcuts and the binding persists.
 
-enum Action { NONE, TURN_LEFT, TURN_RIGHT, TIP_FORWARD, TIP_SIDEWAYS, RESET }
+enum Action { NONE, TURN_LEFT, TURN_RIGHT, TIP_FORWARD, TIP_SIDEWAYS, RESET, REROLL }
 
 ## Action → [setting name, display name, default key, Shift, Alt].
 const _DEFAULTS: Dictionary[Action, Array] = {
@@ -12,6 +12,7 @@ const _DEFAULTS: Dictionary[Action, Array] = {
 	Action.TIP_FORWARD: ["tip_forward", "Tip 90° Forward", KEY_T, false, false],
 	Action.TIP_SIDEWAYS: ["tip_sideways", "Tip 90° Sideways", KEY_T, true, false],
 	Action.RESET: ["reset_rotation", "Reset Rotation", KEY_R, false, true],
+	Action.REROLL: ["reroll_random", "Re-roll Random Yaw and Scale", KEY_D, false, false],
 }
 const _PREFIX := "asset_drawer/"
 
@@ -45,10 +46,10 @@ static func action_for(event: InputEvent) -> Action:
 
 ## A one-line reminder of the current bindings, for the placement bar.
 static func hint() -> String:
-	return "%s / %s turn · %s / %s tip · %s reset · %s+wheel spin · Esc stop" % [
+	return "%s / %s turn · %s / %s tip · %s reset · %s+wheel spin · %s re-roll · Esc stop" % [
 		_text(Action.TURN_LEFT), _text(Action.TURN_RIGHT),
 		_text(Action.TIP_FORWARD), _text(Action.TIP_SIDEWAYS), _text(Action.RESET),
-		"Option" if OS.get_name() == "macOS" else "Alt",
+		"Option" if OS.get_name() == "macOS" else "Alt", _text(Action.REROLL),
 	]
 
 

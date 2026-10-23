@@ -155,8 +155,9 @@ func forward_input(camera: Camera3D, event: InputEvent) -> int:
 	return EditorPlugin.AFTER_GUI_INPUT_PASS
 
 
-## Applies a placement key: Esc, or one of the turn, tip and reset shortcuts.
-## Returns whether the key was used.
+## Applies a placement key: Esc, or one of the turn, tip, reset and re-roll
+## shortcuts. Returns whether the key was used; re-roll is only used while
+## Random is on.
 func handle_key(key: InputEventKey) -> bool:
 	if not is_placing() or not key.pressed:
 		return false
@@ -175,6 +176,10 @@ func handle_key(key: InputEventKey) -> bool:
 		PlacementShortcuts.Action.RESET:
 			_turn = 0.0
 			_tip = Basis.IDENTITY
+		PlacementShortcuts.Action.REROLL:
+			if not settings.random_enabled:
+				return false
+			_roll()
 		_:
 			return false
 	_pose_ghost()

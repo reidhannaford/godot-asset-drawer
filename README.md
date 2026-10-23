@@ -77,6 +77,10 @@ Thumbnails are rendered in an offscreen viewport and cached as PNGs in `.godot/e
 
 `tools/run_tests.sh` runs the headless drawer and placement tests. [docs/development.md](docs/development.md) covers the layout, the conventions, the warnings pass and the headless-editor gotchas; [docs/design.md](docs/design.md) is the design record, with what's in and out of scope and why.
 
+## AI disclosure
+
+AI assists in the making of this project. Code, tests and docs are drafted with Claude Code and reviewed by the maintainer before they land.
+
 ## License
 
 [MIT](LICENSE).

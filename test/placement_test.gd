@@ -7,6 +7,7 @@ const LEVEL := "res://test/test_level.tscn"
 const CRATE := "res://test/props/crate.tscn"
 const NODE_ROOT_SCENE := "res://test_tmp_node_root.tscn"
 const SCENE_2D := "res://test_tmp_2d.tscn"
+const BALL_SCENE := "res://test_tmp_ball.tscn"
 
 var _frame := 0
 var _failures := 0
@@ -164,6 +165,7 @@ func _run() -> void:
 
 	await _surface_checks(level)
 	_transform_checks(level)
+	_rest_checks(level)
 
 	# The ghost never lands in the saved scene.
 	var packed := PackedScene.new()
@@ -348,6 +350,89 @@ func _surface_checks(level: Node3D) -> void:
 
 	settings.set("align_to_normal", false)
 	settings.set("hit_mode", 2)
+	_placer.call("stop")
+
+
+## Copies rest on the surface by their visible bounds, whatever their
+## origin: a centred ball sits on the floor and stands off a wall, a tipped
+## crate lifts by its half-width, and an upright crate on the ramp touches it
+## with its lowest corner.
+func _rest_checks(level: Node3D) -> void:
+	var settings: Variant = _placer.get("settings")
+	var crate_bounds := AABB(Vector3(-0.5, 0.0, -0.5), Vector3.ONE)
+	var slope := Vector3(0.0, cos(deg_to_rad(20.0)), sin(deg_to_rad(20.0)))
+	_check("rest offset is zero for a bottom origin on the floor",
+			is_zero_approx(_placer.call("rest_offset", crate_bounds, Basis.IDENTITY, Vector3.UP)))
+	_check("rest offset lifts a centred box by half its height",
+			is_equal_approx(_placer.call("rest_offset", AABB(Vector3.ONE * -0.4, Vector3.ONE * 0.8), Basis.IDENTITY, Vector3.UP), 0.4))
+	_check("rest offset on a slope reaches the lowest corner",
+			is_equal_approx(_placer.call("rest_offset", crate_bounds, Basis.IDENTITY, slope), 0.5 * sin(deg_to_rad(20.0))))
+	_check("rest offset scales with the pose",
+			is_equal_approx(_placer.call("rest_offset", crate_bounds, Basis.IDENTITY.scaled(Vector3.ONE * 2.0), slope), sin(deg_to_rad(20.0))))
+	_check("rest offset is zero for empty bounds", is_zero_approx(_placer.call("rest_offset", AABB(), Basis.IDENTITY, Vector3.UP)))
+
+	# A ball with its origin at its centre, plus a hidden box that must not count.
+	var ball := Node3D.new()
+	ball.name = "Ball"
+	var mesh := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.4
+	sphere.height = 0.8
+	mesh.mesh = sphere
+	ball.add_child(mesh)
+	mesh.owner = ball
+	var hidden := MeshInstance3D.new()
+	hidden.mesh = BoxMesh.new()
+	hidden.scale = Vector3.ONE * 10.0
+	hidden.visible = false
+	ball.add_child(hidden)
+	hidden.owner = ball
+	var packed := PackedScene.new()
+	packed.pack(ball)
+	ball.free()
+	ResourceSaver.save(packed, BALL_SCENE)
+
+	EditorInterface.get_selection().clear()
+	_placer.call("start", BALL_SCENE)
+	var ghost: Node3D = _placer.call("ghost")
+	var centre := _look_down_at(Vector3(-7.0, 0.0, -7.0))
+	_motion(centre)
+	_check("centred ball rests on the floor", _near(ghost.global_position, Vector3(-7.0, 0.4, -7.0)), ghost.global_position)
+	_click(centre)
+	var placed := level.get_child(level.get_child_count() - 1) as Node3D
+	_check("placed ball rests on the floor", _near(placed.global_position, Vector3(-7.0, 0.4, -7.0)), placed.global_position)
+	_motion(centre)
+	# The sphere mesh is faceted, so the hit normal on its top leans a little.
+	_check("ghost rests on the placed ball", ghost.global_position.distance_to(Vector3(-7.0, 1.2, -7.0)) < 0.05, ghost.global_position)
+	_camera.global_transform = Transform3D(Basis.IDENTITY, Vector3(-4.0, 1.5, 5.0))
+	_motion(_camera.get_viewport().get_visible_rect().size / 2.0)
+	_check("upright ball stands off the wall", _near(ghost.global_position, Vector3(-4.0, 1.5, -4.45)), ghost.global_position)
+	_placer.call("stop")
+	# Take the ball back out before its scene goes, or the level can't be packed.
+	_history().undo()
+	DirAccess.remove_absolute(BALL_SCENE)
+
+	_placer.call("start", CRATE)
+	ghost = _placer.call("ghost")
+	centre = _look_down_at(Vector3(-7.0, 0.0, 0.0))
+	_placer.call("handle_key", _key(KEY_T))
+	_motion(centre)
+	_check("tipped crate lifts by its half-width", _near(ghost.global_position, Vector3(-7.0, 0.5, 0.0)), ghost.global_position)
+	_placer.call("handle_key", _key(KEY_R, false, true))
+	# A clear part of the ramp, away from the crate the surface checks left at z=0.
+	# The ramp's top face is 0.1 above its centre plane along the normal.
+	var ramp_z := -1.5
+	var ramp_top := Vector3(6.0, 1.0 + (0.1 - sin(deg_to_rad(20.0)) * ramp_z) / cos(deg_to_rad(20.0)), ramp_z)
+	settings.set("align_to_normal", false)
+	centre = _look_down_at(Vector3(ramp_top.x, 0.0, ramp_top.z))
+	_motion(centre)
+	var expected := ramp_top + slope * 0.5 * sin(deg_to_rad(20.0))
+	_check("upright crate touches the ramp with its lowest corner", ghost.global_position.distance_to(expected) < 0.01,
+			[ghost.global_position, expected])
+	settings.set("align_to_normal", true)
+	_motion(centre)
+	_check("aligned crate sits flat on the ramp", _near(ghost.global_position, ramp_top), [ghost.global_position, ramp_top])
+	settings.set("align_to_normal", false)
 	_placer.call("stop")
 
 

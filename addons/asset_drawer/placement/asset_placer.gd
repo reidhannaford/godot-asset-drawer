@@ -33,6 +33,9 @@ var _ghost: Node3D
 var _parent: Node
 var _has_hit: bool = false
 var _hit_transform := Transform3D.IDENTITY
+## The asset's visible bounds in its own frame, so a copy can rest on the
+## surface it's placed on whatever its origin is.
+var _bounds := AABB()
 ## The last surface hit, kept so a key press can re-pose the ghost without
 ## a new raycast.
 var _last_hit: Dictionary = {}
@@ -90,6 +93,7 @@ func start(path: String) -> bool:
 	_ghost.visible = false
 	_make_ghostly(_ghost)
 	root.get_parent().add_child(_ghost)
+	_bounds = visible_bounds(_ghost)
 	_parent = _placement_parent(root)
 	_mesh_raycast = MeshRaycast.new(root)
 	_turn = 0.0
@@ -241,7 +245,8 @@ func _pose_ghost() -> void:
 
 ## Where a copy lands for a hit at [param position] on a surface facing
 ## [param normal]: snapped, aligned, turned, tipped, and randomized as the
-## settings say.
+## settings say, then lifted along the normal so its visible bounds rest on
+## the surface rather than its origin.
 func placement_transform(position: Vector3, normal: Vector3) -> Transform3D:
 	if settings.snap_enabled and settings.snap_step > 0.0:
 		position = snap_to_surface(position, normal, settings.snap_step)
@@ -249,7 +254,45 @@ func placement_transform(position: Vector3, normal: Vector3) -> Transform3D:
 	var yaw := _turn + (_random_yaw if settings.random_enabled else 0.0)
 	var scale := _random_scale if settings.random_enabled else 1.0
 	var basis := (surface * Basis(Vector3.UP, yaw) * _tip).scaled(Vector3.ONE * scale)
+	position += normal * rest_offset(_bounds, basis, normal)
 	return Transform3D(basis, position)
+
+
+## How far along [param normal] an asset with local [param bounds], posed
+## with [param basis], has to move from the hit point so that its nearest
+## corner touches the surface: the way the editor's own drag and drop places
+## a scene. An asset whose origin is already on that face moves by nothing;
+## one with a centred origin moves out by half its depth. Empty bounds, from
+## an asset with nothing visible, move it by nothing.
+static func rest_offset(bounds: AABB, basis: Basis, normal: Vector3) -> float:
+	if bounds.size.is_zero_approx():
+		return 0.0
+	var lowest := INF
+	for corner: int in 8:
+		lowest = minf(lowest, (basis * bounds.get_endpoint(corner)).dot(normal))
+	return -lowest
+
+
+## The combined bounds of everything visible under [param root], in
+## [param root]'s own frame. Hidden branches are left out; [param root]'s
+## own visibility is ignored, since the ghost starts hidden.
+static func visible_bounds(root: Node3D) -> AABB:
+	var bounds := AABB()
+	var first := true
+	var to_root := root.global_transform.affine_inverse()
+	var pending: Array[Node] = [root]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		var node_3d := node as Node3D
+		if node != root and node_3d != null and not node_3d.visible:
+			continue
+		var geometry := node as GeometryInstance3D
+		if geometry != null:
+			var box := to_root * geometry.global_transform * geometry.get_aabb()
+			bounds = box if first else bounds.merge(box)
+			first = false
+		pending.append_array(node.get_children())
+	return bounds
 
 
 ## Snaps [param position] to a world grid of [param step], then slides it

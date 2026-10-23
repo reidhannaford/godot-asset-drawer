@@ -10,7 +10,7 @@ A small Godot 4.7+ editor addon for level building. Organize scenes and models i
 
 - **Libraries.** A library is a `.tres` resource saved anywhere in your project, with nested folders. Assets are tracked by uid, so moving or renaming files doesn't break anything, and a deleted asset shows as a marked tile with its last path rather than vanishing. Libraries are plain resources: commit them, diff them, share them.
 - **The drawer.** An **Assets** dock that starts in the bottom panel and can be moved to a side dock or floated. Rendered thumbnails, a text filter, drag-in from the FileSystem dock, drag-to-reorder, and a folder tree. Tiles can also be dragged into the 3D viewport or the Scene dock like files.
-- **Placement.** Click a tile and a see-through ghost follows the mouse over your scene. Each click stamps one copy as one undo step, parented under the node you had selected. It lands on colliders, on visible meshes (so geometry without collision works too), or whichever is nearer.
+- **Placement.** Click a tile and a see-through ghost follows the mouse over your scene. Each click stamps one copy as one undo step, parented under the node you had selected. It lands on colliders, on visible meshes (so geometry without collision works too), or whichever is nearer, and rests on the surface by its visible bounds, so an asset with a centred origin isn't half buried.
 - **Shaping each copy.** Align to the surface normal, turn and tip in 90° steps, spin with the wheel, random yaw and scale per copy, and grid snap that stays on the surface you hit.
 
 ## Requirements
@@ -39,7 +39,7 @@ A second toolbar row appears while a tile is armed.
 | Control | Effect |
 | --- | --- |
 | **Hit mode** | What the ray lands on: **Colliders**, **Meshes** (visible `MeshInstance3D`s, no collision needed) or **Both** (the nearer wins). |
-| **Align** | Tilt the copy so its up axis follows the surface normal. Off, copies stay upright. |
+| **Align** | Tilt the copy so its up axis follows the surface normal. Off, copies stay upright, and stand off a wall by their own depth. |
 | **Random** and **⋮** | Give each copy a random yaw (0 to N°) and uniform scale (min to max). The ghost always shows the next roll. |
 | **Snap** and step | Snap the hit point to a world grid, then slide it back onto the surface, so a floor keeps its height and a wall keeps its depth. |
 

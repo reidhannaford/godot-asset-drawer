@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Placed copies rest on the surface by their visible bounds, as the editor's own drag and drop does, so an asset with a centred origin no longer sinks halfway in. Tipped assets lift by their half-width, and upright assets on a wall stand off it by their depth.
 - A new folder opens for renaming right away. The rename box used to open empty and off the row, because the tree hadn't drawn the new item yet.
 - Double-clicking a folder renames it.
 

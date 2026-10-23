@@ -112,6 +112,22 @@ func _run() -> void:
 	_history().redo()
 	_check("redo puts it back", second.is_inside_tree() and second.get_parent() == level and second.owner == level)
 
+	# Something that moves every new node, like the 3D Cursor, doesn't win.
+	var mover := func(node: Node) -> void:
+		var node_3d := node as Node3D
+		if node_3d != null and level.is_ancestor_of(node_3d) and node_3d.scene_file_path == CRATE:
+			node_3d.global_position = Vector3(50.0, 0.0, 50.0)
+	node_added.connect(mover)
+	centre = _look_down_at(Vector3(2.0, 0.0, 6.0))
+	_motion(centre)
+	_click(centre)
+	var moved := level.get_child(level.get_child_count() - 1) as Node3D
+	_check("placement beats a node_added mover", _near(moved.global_position, Vector3(2.0, 0.0, 6.0)), moved.global_position)
+	_history().undo()
+	_history().redo()
+	_check("redo beats it too", _near(moved.global_position, Vector3(2.0, 0.0, 6.0)), moved.global_position)
+	node_added.disconnect(mover)
+
 	# Miss: nothing under the cursor hides the ghost, and clicks place nothing.
 	_camera.global_transform = Transform3D(Basis.from_euler(Vector3(PI / 2.0, 0.0, 0.0)), Vector3.UP * 10.0)
 	_motion(centre)
@@ -187,8 +203,8 @@ func _drawer_arming() -> void:
 	grid.call("_drop_data", Vector2.ZERO, {"type": "files", "files": PackedStringArray([CRATE, "res://test/props/rock.tscn"])})
 	_panel.call("_on_item_clicked", 0, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	_check("clicking a tile starts placing", _placer.call("is_placing") and _panel.call("armed_entry") != null)
-	var hint: Label = root.find_children("AssetDrawerPlacementBar", "", true, false)[0].get("_hint")
-	_check("key hint shows while placing", hint.visible and hint.text.contains("turn"), hint.text)
+	var hint: Label = _panel.get("_status")
+	_check("placement row and key hint show while placing", hint.is_visible_in_tree() and hint.text.contains("turn"), hint.text)
 	_panel.call("_on_item_clicked", 1, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	_check("clicking another tile switches asset", _placer.call("is_placing") and _panel.call("armed_entry") == grid.call("entry_at", 1))
 	_panel.call("_on_item_clicked", 1, Vector2.ZERO, MOUSE_BUTTON_LEFT)
@@ -197,7 +213,7 @@ func _drawer_arming() -> void:
 	_panel.call("_on_item_clicked", 0, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	grid.emit_signal("escape_pressed")
 	_check("esc in the drawer lets go", not _placer.call("is_placing") and _panel.call("armed_entry") == null)
-	_check("key hint hides after", not hint.visible)
+	_check("placement row hides after", not hint.is_visible_in_tree())
 
 	_panel.call("_on_item_clicked", 0, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	var escape := InputEventKey.new()

@@ -12,7 +12,6 @@ const PlacementShortcuts := preload("placement/placement_shortcuts.gd")
 
 var _dock: EditorDock
 var _panel: AssetDrawerPanel
-var _bar: PlacementBar
 var _placer: AssetPlacer
 
 
@@ -22,8 +21,7 @@ func _enter_tree() -> void:
 	settings.restore()
 
 	_panel = AssetDrawerPanel.new()
-	_bar = PlacementBar.new(settings)
-	_panel.add_toolbar_control(_bar)
+	_panel.add_placement_control(PlacementBar.new(settings))
 	_placer = AssetPlacer.new()
 	_placer.undo_redo = get_undo_redo()
 	_placer.settings = settings
@@ -51,7 +49,6 @@ func _exit_tree() -> void:
 	_dock.queue_free()
 	_dock = null
 	_panel = null
-	_bar = null
 	_placer.queue_free()
 	_placer = null
 
@@ -64,17 +61,17 @@ func _on_asset_armed(path: String) -> void:
 	var placing := _placer.start(path)
 	if not placing:
 		_panel.disarm()
-	_bar.show_hint(placing)
+	_panel.set_placing(placing, PlacementShortcuts.hint())
 
 
 func _on_asset_disarmed() -> void:
 	_placer.stop()
-	_bar.show_hint(false)
+	_panel.set_placing(false)
 
 
 func _on_placement_stopped() -> void:
 	_panel.disarm()
-	_bar.show_hint(false)
+	_panel.set_placing(false)
 
 
 func _on_scene_changed(_scene_root: Node) -> void:

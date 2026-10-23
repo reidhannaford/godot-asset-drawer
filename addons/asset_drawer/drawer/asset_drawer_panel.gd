@@ -1,8 +1,9 @@
 @tool
 extends VBoxContainer
 ## The drawer's contents: a toolbar for switching, creating and filtering
-## libraries over the thumbnail grid. Keeps the open libraries in the
-## project's editor metadata so they come back next session.
+## libraries, a placement row that shows only while placing, then the
+## library's folder tree beside the selected folder's assets. Keeps the open libraries in the project's editor metadata so they
+## come back next session.
 ##
 ## Clicking a tile arms it for placement; clicking it again, or Esc, lets go.
 
@@ -12,16 +13,21 @@ signal asset_armed(path: String)
 signal asset_disarmed
 
 const AssetGrid := preload("asset_grid.gd")
+const AssetSections := preload("asset_sections.gd")
+const FolderTree := preload("folder_tree.gd")
 
 const METADATA_SECTION := "asset_drawer"
 const ASSET_TYPE := "PackedScene"
 const MIN_THUMBNAIL := 32
 const MAX_THUMBNAIL := 192
+const NEW_FOLDER_NAME := "New Folder"
 
 enum MenuItem { REMOVE, SHOW_IN_FILESYSTEM }
 
 var _libraries: Array[AssetDrawerLibrary] = []
 var _active: AssetDrawerLibrary
+## The folder shown in the sections, in the active library.
+var _folder: AssetDrawerFolder
 ## The tile being placed, if any.
 var _armed: AssetDrawerEntry
 ## Built-in previews by asset path, filled in as the previewer answers.
@@ -33,8 +39,14 @@ var _switcher: OptionButton
 var _new_button: Button
 var _open_button: Button
 var _close_button: Button
+var _new_folder_button: Button
 var _filter: LineEdit
 var _size_slider: HSlider
+var _placement_row: HFlowContainer
+var _status: Label
+var _tree: FolderTree
+var _sections: AssetSections
+## The selected folder's own grid, which stays the same node.
 var _grid: AssetGrid
 var _menu: PopupMenu
 var _new_dialog: EditorFileDialog
@@ -44,52 +56,78 @@ var _open_dialog: EditorFileDialog
 func _init() -> void:
 	name = "AssetDrawer"
 	size_flags_vertical = SIZE_EXPAND_FILL
+	var ui_scale := EditorInterface.get_editor_scale()
 
 	# Wraps onto more rows when the drawer is docked somewhere narrow.
 	_toolbar = HFlowContainer.new()
 	add_child(_toolbar)
 
 	_switcher = OptionButton.new()
-	_switcher.custom_minimum_size.x = 160.0
+	_switcher.custom_minimum_size.x = 140.0 * ui_scale
 	_switcher.fit_to_longest_item = false
 	_switcher.tooltip_text = "Active library"
 	_switcher.item_selected.connect(_on_switcher_selected)
-	_toolbar.add_child(_switcher)
+	_add_to_toolbar(_switcher)
 
 	_new_button = _make_tool_button("New library…", _on_new_pressed)
-	_toolbar.add_child(_new_button)
 	_open_button = _make_tool_button("Open library…", _on_open_pressed)
-	_toolbar.add_child(_open_button)
 	_close_button = _make_tool_button("Close library", _close_active)
-	_toolbar.add_child(_close_button)
-
-	_toolbar.add_child(VSeparator.new())
+	_new_folder_button = _make_tool_button("New folder in the selected folder",
+			func() -> void: _new_folder(_folder))
 
 	_filter = LineEdit.new()
 	_filter.placeholder_text = "Filter assets"
 	_filter.clear_button_enabled = true
+	_filter.custom_minimum_size.x = 100.0 * ui_scale
 	_filter.size_flags_horizontal = SIZE_EXPAND_FILL
 	_filter.text_changed.connect(_on_filter_changed)
-	_toolbar.add_child(_filter)
+	_add_to_toolbar(_filter)
 
 	_size_slider = HSlider.new()
 	_size_slider.min_value = MIN_THUMBNAIL
 	_size_slider.max_value = MAX_THUMBNAIL
 	_size_slider.step = 8
 	_size_slider.value = 64
-	_size_slider.custom_minimum_size.x = 100.0
-	_size_slider.size_flags_vertical = SIZE_SHRINK_CENTER
+	_size_slider.custom_minimum_size.x = 64.0 * ui_scale
 	_size_slider.tooltip_text = "Thumbnail size"
 	_size_slider.value_changed.connect(_on_size_changed)
-	_toolbar.add_child(_size_slider)
+	_add_to_toolbar(_size_slider)
 
-	_grid = AssetGrid.new()
-	_grid.files_dropped.connect(_on_files_dropped)
-	_grid.entries_moved.connect(_on_entries_moved)
-	_grid.delete_pressed.connect(_remove_selected)
-	_grid.escape_pressed.connect(_let_go)
-	_grid.item_clicked.connect(_on_item_clicked)
-	add_child(_grid)
+	_placement_row = HFlowContainer.new()
+	_placement_row.visible = false
+	add_child(_placement_row)
+	_status = Label.new()
+	_status.modulate = Color(1.0, 1.0, 1.0, 0.6)
+	_status.size_flags_vertical = SIZE_SHRINK_CENTER
+	_placement_row.add_child(_status)
+
+	var split := HSplitContainer.new()
+	split.size_flags_vertical = SIZE_EXPAND_FILL
+	split.split_offset = roundi(40.0 * ui_scale)
+	add_child(split)
+
+	_tree = FolderTree.new()
+	_tree.folder_selected.connect(_on_folder_selected)
+	_tree.new_folder_requested.connect(_new_folder)
+	_tree.rename_requested.connect(_rename_folder)
+	_tree.delete_requested.connect(_delete_folder)
+	_tree.folder_moved.connect(_move_folder)
+	_tree.entries_dropped.connect(func(entries: Array[AssetDrawerEntry], into: AssetDrawerFolder) -> void:
+		_on_entries_moved(entries, null, into))
+	_tree.files_dropped.connect(func(paths: PackedStringArray, into: AssetDrawerFolder) -> void:
+		_on_files_dropped(paths, null, into))
+	split.add_child(_tree)
+
+	_sections = AssetSections.new()
+	_sections.icon_for = _icon_for
+	_sections.files_dropped.connect(_on_files_dropped)
+	_sections.entries_moved.connect(_on_entries_moved)
+	_sections.delete_pressed.connect(_remove_selected)
+	_sections.escape_pressed.connect(_let_go)
+	_sections.tile_clicked.connect(func(grid: AssetGrid, index: int, at_position: Vector2, button: int) -> void:
+		_on_item_clicked(index, at_position, button, grid))
+	split.add_child(_sections)
+	_grid = _sections.primary()
 
 	_menu = PopupMenu.new()
 	_menu.add_item("Remove from Library", MenuItem.REMOVE)
@@ -114,12 +152,13 @@ func _notification(what: int) -> void:
 		_new_button.icon = get_theme_icon(&"New", &"EditorIcons")
 		_open_button.icon = get_theme_icon(&"Load", &"EditorIcons")
 		_close_button.icon = get_theme_icon(&"Close", &"EditorIcons")
+		_new_folder_button.icon = get_theme_icon(&"FolderCreate", &"EditorIcons")
 		_filter.right_icon = get_theme_icon(&"Search", &"EditorIcons")
 		_menu.set_item_icon(_menu.get_item_index(MenuItem.REMOVE), get_theme_icon(&"Remove", &"EditorIcons"))
 		_menu.set_item_icon(_menu.get_item_index(MenuItem.SHOW_IN_FILESYSTEM),
 				get_theme_icon(&"ShowInFileSystem", &"EditorIcons"))
 		if is_node_ready():
-			_rebuild_grid()
+			_refresh()
 
 
 ## Opens [param library] (or switches to it if it's already open) and makes
@@ -128,6 +167,7 @@ func open_library(library: AssetDrawerLibrary) -> void:
 	if not _libraries.has(library):
 		_libraries.append(library)
 	_active = library
+	_folder = library
 	_remember()
 	_refresh()
 
@@ -136,10 +176,26 @@ func active_library() -> AssetDrawerLibrary:
 	return _active
 
 
-## Adds [param control] to the end of the toolbar, after a separator.
-func add_toolbar_control(control: Control) -> void:
-	_toolbar.add_child(VSeparator.new())
-	_toolbar.add_child(control)
+func selected_folder() -> AssetDrawerFolder:
+	return _folder
+
+
+func open_libraries() -> Array[AssetDrawerLibrary]:
+	return _libraries.duplicate()
+
+
+## Adds [param control] to the placement row, before the key hint.
+func add_placement_control(control: Control) -> void:
+	control.size_flags_vertical = SIZE_SHRINK_CENTER
+	_placement_row.add_child(control)
+	_placement_row.move_child(_status, -1)
+
+
+## Shows the placement row with [param hint] while placing, and hides it
+## otherwise so the idle drawer keeps to one toolbar row.
+func set_placing(placing: bool, hint: String = "") -> void:
+	_placement_row.visible = placing
+	_status.text = hint
 
 
 func armed_entry() -> AssetDrawerEntry:
@@ -150,12 +206,12 @@ func armed_entry() -> AssetDrawerEntry:
 ## placement ended somewhere else.
 func disarm() -> void:
 	_armed = null
-	_grid.highlight(null)
+	_sections.highlight(null)
 
 
 func _arm(entry: AssetDrawerEntry) -> void:
 	_armed = entry
-	_grid.highlight(entry)
+	_sections.highlight(entry)
 	asset_armed.emit(entry.resolve_path())
 
 
@@ -166,8 +222,11 @@ func _let_go() -> void:
 		asset_disarmed.emit()
 
 
-func open_libraries() -> Array[AssetDrawerLibrary]:
-	return _libraries.duplicate()
+## Toolbar controls keep their own height, so one tall control can't
+## stretch the whole row.
+func _add_to_toolbar(control: Control) -> void:
+	control.size_flags_vertical = SIZE_SHRINK_CENTER
+	_toolbar.add_child(control)
 
 
 func _make_tool_button(tooltip: String, on_pressed: Callable) -> Button:
@@ -175,6 +234,7 @@ func _make_tool_button(tooltip: String, on_pressed: Callable) -> Button:
 	button.flat = true
 	button.tooltip_text = tooltip
 	button.pressed.connect(on_pressed)
+	_add_to_toolbar(button)
 	return button
 
 
@@ -227,6 +287,7 @@ func _close_active() -> void:
 	var index := _libraries.find(_active)
 	_libraries.remove_at(index)
 	_active = _libraries[mini(index, _libraries.size() - 1)] if not _libraries.is_empty() else null
+	_folder = _active
 	_remember()
 	_refresh()
 
@@ -254,7 +315,7 @@ func _restore() -> void:
 	var settings := EditorInterface.get_editor_settings()
 	_size_slider.set_value_no_signal(
 			settings.get_project_metadata(METADATA_SECTION, "thumbnail_size", 64) as int)
-	_grid.set_thumbnail_size(int(_size_slider.value))
+	_sections.set_thumbnail_size(int(_size_slider.value))
 
 	var open := settings.get_project_metadata(METADATA_SECTION, "open_libraries",
 			PackedStringArray()) as PackedStringArray
@@ -273,6 +334,7 @@ func _restore() -> void:
 			_active = library
 	if _active == null and not _libraries.is_empty():
 		_active = _libraries[0]
+	_folder = _active
 	_refresh()
 
 
@@ -281,6 +343,7 @@ func _restore() -> void:
 
 func _on_switcher_selected(index: int) -> void:
 	_active = _libraries[index]
+	_folder = _active
 	_remember()
 	_refresh()
 
@@ -298,16 +361,59 @@ func _on_filter_changed(_text: String) -> void:
 
 
 func _on_size_changed(value: float) -> void:
-	_grid.set_thumbnail_size(int(value))
+	_sections.set_thumbnail_size(int(value))
 	EditorInterface.get_editor_settings().set_project_metadata(
 			METADATA_SECTION, "thumbnail_size", int(value))
+
+
+# Folders
+
+
+func _on_folder_selected(folder: AssetDrawerFolder) -> void:
+	_folder = folder
+	_rebuild_grid()
+
+
+## Makes a folder in [param parent], selects it and starts renaming it.
+func _new_folder(parent: AssetDrawerFolder) -> AssetDrawerFolder:
+	if _active == null or parent == null:
+		return null
+	var folder := _active.add_folder(parent, NEW_FOLDER_NAME)
+	_save_active()
+	_folder = folder
+	_refresh()
+	_tree.begin_rename(folder)
+	return folder
+
+
+func _rename_folder(folder: AssetDrawerFolder, new_name: String) -> void:
+	_active.rename_folder(folder, new_name)
+	_save_active()
+	_refresh()
+
+
+func _delete_folder(folder: AssetDrawerFolder) -> void:
+	var parent := _active.parent_of(folder)
+	if parent == null:
+		return
+	_active.delete_folder(folder)
+	_save_active()
+	if not _active.contains_folder(_folder):
+		_folder = parent
+	_refresh()
+
+
+func _move_folder(folder: AssetDrawerFolder, into: AssetDrawerFolder, before: AssetDrawerFolder) -> void:
+	if _active.move_folder(folder, into, before):
+		_save_active()
+		_refresh()
 
 
 # Grid
 
 
-## Rebuilds the switcher and grid from the open libraries, saving the active
-## one first if any of its assets moved.
+## Rebuilds the switcher, folder tree and sections from the open libraries,
+## saving the active one first if any of its assets moved.
 func _refresh() -> void:
 	_switcher.clear()
 	for library: AssetDrawerLibrary in _libraries:
@@ -318,44 +424,30 @@ func _refresh() -> void:
 	else:
 		_switcher.select(_libraries.find(_active))
 	_close_button.disabled = _active == null
+	_new_folder_button.disabled = _active == null
 	_filter.editable = _active != null
 
 	if _active != null and _active.refresh_paths():
 		_save_active()
+	if _active != null and (_folder == null or not _active.contains_folder(_folder)):
+		_folder = _active
+	_tree.show_library(_active, _folder)
 	_rebuild_grid()
 
 
 func _rebuild_grid() -> void:
-	var selected := _grid.selected_entries()
-	_grid.clear()
-	_grid.accepts_drops = _active != null
 	if _active == null:
 		_let_go()
-		_grid.empty_text = "Create or open a library to start."
+		_sections.show_folder(null, "", false, "Create or open a library to start.")
 		return
-
 	var needle := _filter.text.strip_edges()
-	for entry: AssetDrawerEntry in _active.entries:
-		var label := entry.display_name()
-		if not needle.is_empty() and not label.containsn(needle):
-			continue
-		var path := entry.resolve_path()
-		var index := _grid.add_item(label, _icon_for(path))
-		_grid.set_item_metadata(index, entry)
-		if path.is_empty():
-			_grid.set_item_tooltip(index, "Missing: %s\n%s" % [entry.last_path, entry.uid])
-			_grid.set_item_custom_fg_color(index, get_theme_color(&"error_color", &"Editor"))
-		else:
-			_grid.set_item_tooltip(index, path)
-	_grid.select_entries(selected)
-	if not _active.entries.has(_armed):
+	var empty_text := "Drag scenes or models here from the FileSystem dock."
+	if not _folder.all_entries().is_empty():
+		empty_text = "No assets match the filter."
+	_sections.show_folder(_folder, needle, true, empty_text)
+	if not _active.all_entries().has(_armed):
 		_let_go()
-	_grid.highlight(_armed)
-
-	if not _active.entries.is_empty():
-		_grid.empty_text = "No assets match the filter."
-	else:
-		_grid.empty_text = "Drag scenes or models here from the FileSystem dock."
+	_sections.highlight(_armed)
 
 
 func _icon_for(path: String) -> Texture2D:
@@ -412,9 +504,7 @@ func _largest_mesh(path: String) -> Mesh:
 func _show_preview(path: String, preview: Texture2D) -> void:
 	_pending_previews.erase(path)
 	_previews[path] = preview
-	for index: int in _grid.item_count:
-		if _grid.entry_at(index).resolve_path() == path:
-			_grid.set_item_icon(index, preview)
+	_sections.set_icon(path, preview)
 
 
 func _on_preview_invalidated(path: String) -> void:
@@ -422,7 +512,18 @@ func _on_preview_invalidated(path: String) -> void:
 		_rebuild_grid()
 
 
-func _on_files_dropped(paths: PackedStringArray, before: AssetDrawerEntry) -> void:
+## Files the assets among [param paths] in [param folder] (the selected one
+## when null), just before [param before].
+func _on_files_dropped(paths: PackedStringArray, before: AssetDrawerEntry, folder: AssetDrawerFolder = null) -> void:
+	var library := _active
+	var into := folder if folder != null else _folder
+	# File types read as unknown while the editor rescans, which it does
+	# right after new models are imported; wait for it to finish.
+	var filesystem := EditorInterface.get_resource_filesystem()
+	while filesystem.is_scanning():
+		await filesystem.filesystem_changed
+	if library != _active or not _active.contains_folder(into):
+		return
 	var added: Array[AssetDrawerEntry] = []
 	for path: String in _collect_assets(paths):
 		var entry := _active.find_uid(ResourceUID.path_to_uid(path))
@@ -432,10 +533,10 @@ func _on_files_dropped(paths: PackedStringArray, before: AssetDrawerEntry) -> vo
 			added.append(entry)
 	if added.is_empty():
 		return
-	_active.insert(added, before)
+	_active.move_entries(added, into, before if into.entries.has(before) else null)
 	_save_active()
 	_rebuild_grid()
-	_grid.select_entries(added)
+	_sections.select_entries(added)
 
 
 ## Scene and model files among [param paths], with folders expanded into the
@@ -465,15 +566,17 @@ func _assets_in_folder(folder: String) -> PackedStringArray:
 	return found
 
 
-func _on_entries_moved(entries: Array[AssetDrawerEntry], before: AssetDrawerEntry) -> void:
-	_active.insert(entries, before)
+## Moves [param entries] into [param folder] (the selected one when null),
+## just before [param before].
+func _on_entries_moved(entries: Array[AssetDrawerEntry], before: AssetDrawerEntry, folder: AssetDrawerFolder = null) -> void:
+	_active.move_entries(entries, folder if folder != null else _folder, before)
 	_save_active()
 	_rebuild_grid()
-	_grid.select_entries(entries)
+	_sections.select_entries(entries)
 
 
 func _remove_selected() -> void:
-	var selected := _grid.selected_entries()
+	var selected := _sections.selected_entries()
 	if selected.is_empty():
 		return
 	_active.remove(selected)
@@ -481,26 +584,28 @@ func _remove_selected() -> void:
 	_rebuild_grid()
 
 
-func _on_item_clicked(index: int, at_position: Vector2, mouse_button_index: int) -> void:
+func _on_item_clicked(index: int, at_position: Vector2, mouse_button_index: int, grid: AssetGrid = null) -> void:
+	if grid == null:
+		grid = _grid
 	if mouse_button_index == MOUSE_BUTTON_LEFT:
-		_on_tile_left_clicked(index)
+		_on_tile_left_clicked(grid, index)
 		return
 	if mouse_button_index != MOUSE_BUTTON_RIGHT:
 		return
-	var selected := _grid.get_selected_items()
-	var single_path := _grid.entry_at(index).resolve_path() if selected.size() == 1 else ""
+	var selected := _sections.selected_entries()
+	var single_path := grid.entry_at(index).resolve_path() if selected.size() == 1 else ""
 	_menu.set_item_disabled(_menu.get_item_index(MenuItem.SHOW_IN_FILESYSTEM), single_path.is_empty())
-	_menu.position = Vector2i(_grid.get_screen_position() + at_position)
+	_menu.position = Vector2i(grid.get_screen_position() + at_position)
 	_menu.reset_size()
 	_menu.popup()
 
 
 ## A plain click arms the tile, or lets go if it's already armed. Clicks
 ## with Shift or Cmd/Ctrl only change the selection.
-func _on_tile_left_clicked(index: int) -> void:
+func _on_tile_left_clicked(grid: AssetGrid, index: int) -> void:
 	if Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_META) or Input.is_key_pressed(KEY_CTRL):
 		return
-	var entry := _grid.entry_at(index)
+	var entry := grid.entry_at(index)
 	if entry == _armed:
 		_let_go()
 	elif not entry.resolve_path().is_empty():
@@ -512,6 +617,6 @@ func _on_menu_id_pressed(id: int) -> void:
 		MenuItem.REMOVE:
 			_remove_selected()
 		MenuItem.SHOW_IN_FILESYSTEM:
-			var selected := _grid.selected_entries()
+			var selected := _sections.selected_entries()
 			if selected.size() == 1:
 				EditorInterface.get_file_system_dock().navigate_to_path(selected[0].resolve_path())

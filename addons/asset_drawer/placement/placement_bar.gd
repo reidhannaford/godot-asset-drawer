@@ -1,11 +1,10 @@
 @tool
-extends HFlowContainer
+extends HBoxContainer
 ## Toolbar controls for the placement settings: what the ray lands on,
-## align to surface, random yaw and scale, and grid snap. While placing it
-## also shows the placement keys.
+## align to surface, random yaw and scale, and grid snap. One row, so the
+## drawer's toolbar wraps it as a unit.
 
 const PlacementSettings := preload("placement_settings.gd")
-const PlacementShortcuts := preload("placement_shortcuts.gd")
 
 var _settings: PlacementSettings
 var _hit_mode: OptionButton
@@ -18,7 +17,6 @@ var _random_scale_min: SpinBox
 var _random_scale_max: SpinBox
 var _snap: CheckBox
 var _snap_step: SpinBox
-var _hint: Label
 
 
 func _init(placement_settings: PlacementSettings) -> void:
@@ -26,11 +24,12 @@ func _init(placement_settings: PlacementSettings) -> void:
 	_settings = placement_settings
 
 	_hit_mode = OptionButton.new()
-	_hit_mode.tooltip_text = "What placement lands on. With both, the nearer surface wins."
+	_hit_mode.tooltip_text = "What placement lands on: colliders, visible meshes, or both (the nearer surface wins)."
 	_hit_mode.add_item("Colliders", PlacementSettings.HitMode.COLLIDERS)
 	_hit_mode.add_item("Meshes", PlacementSettings.HitMode.MESHES)
-	_hit_mode.add_item("Colliders + meshes", PlacementSettings.HitMode.BOTH)
+	_hit_mode.add_item("Both", PlacementSettings.HitMode.BOTH)
 	_hit_mode.item_selected.connect(_on_hit_mode_selected)
+	_hit_mode.size_flags_vertical = SIZE_SHRINK_CENTER
 	add_child(_hit_mode)
 
 	_align = _make_check("Align", "Align to surface: tilt assets so their up axis follows the surface they land on.")
@@ -42,6 +41,7 @@ func _init(placement_settings: PlacementSettings) -> void:
 	_random_ranges.flat = true
 	_random_ranges.tooltip_text = "Random ranges"
 	_random_ranges.pressed.connect(_show_random_ranges)
+	_random_ranges.size_flags_vertical = SIZE_SHRINK_CENTER
 	add_child(_random_ranges)
 	_build_random_popup()
 
@@ -50,12 +50,6 @@ func _init(placement_settings: PlacementSettings) -> void:
 	_snap_step = _make_spin(0.01, 100.0, 0.01, " m", "Snap step")
 	_snap_step.value_changed.connect(func(value: float) -> void: _settings.snap_step = value)
 	add_child(_snap_step)
-
-	_hint = Label.new()
-	_hint.visible = false
-	_hint.modulate = Color(1.0, 1.0, 1.0, 0.6)
-	_hint.size_flags_vertical = SIZE_SHRINK_CENTER
-	add_child(_hint)
 
 	sync()
 
@@ -77,16 +71,11 @@ func sync() -> void:
 	_snap_step.set_value_no_signal(_settings.snap_step)
 
 
-## Shows or hides the reminder of the placement keys.
-func show_hint(placing: bool) -> void:
-	_hint.text = PlacementShortcuts.hint() if placing else ""
-	_hint.visible = placing
-
-
 func _make_check(text: String, tooltip: String) -> CheckBox:
 	var check := CheckBox.new()
 	check.text = text
 	check.tooltip_text = tooltip
+	check.size_flags_vertical = SIZE_SHRINK_CENTER
 	add_child(check)
 	return check
 
@@ -99,7 +88,7 @@ func _make_spin(min_value: float, max_value: float, step: float, suffix: String,
 	spin.suffix = suffix
 	spin.select_all_on_focus = true
 	spin.tooltip_text = tooltip
-	spin.custom_minimum_size.x = 96.0
+	spin.custom_minimum_size.x = 64.0 * EditorInterface.get_editor_scale()
 	spin.size_flags_vertical = SIZE_SHRINK_CENTER
 	return spin
 

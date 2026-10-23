@@ -1,8 +1,9 @@
 @tool
 extends ItemList
-## The drawer's thumbnail grid. Each item's metadata is its AssetDrawerEntry.
-## Takes file drops from the FileSystem dock and reorders its own items by
-## drag; the panel decides what a drop means for the library.
+## A thumbnail grid for one folder's assets. Each item's metadata is its
+## AssetDrawerEntry. Takes file drops from the FileSystem dock and tiles
+## dragged from any grid; the panel decides what a drop means for the library.
+## Grows to fit its tiles, so the sections view around it does the scrolling.
 
 ## FileSystem files or folders were dropped just before [param before], or at
 ## the end when it's null.
@@ -24,6 +25,8 @@ var empty_text: String = "":
 		queue_redraw()
 ## Whether drops are allowed. Off while no library is open.
 var accepts_drops: bool = false
+## The folder whose assets this grid shows, and where drops on it are filed.
+var folder: AssetDrawerFolder
 
 var _drop_index: int = -1
 
@@ -36,9 +39,7 @@ func _init() -> void:
 	icon_mode = ICON_MODE_TOP
 	max_text_lines = 2
 	text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	size_flags_vertical = SIZE_EXPAND_FILL
-	# Room for one row of default-size tiles with their names.
-	custom_minimum_size.y = 128.0
+	auto_height = true
 	set_thumbnail_size(64)
 
 
@@ -74,6 +75,9 @@ func highlight(entry: AssetDrawerEntry) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	if _scroll_parent_with(event):
+		accept_event()
+		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
@@ -83,6 +87,33 @@ func _gui_input(event: InputEvent) -> void:
 	elif key.keycode == KEY_ESCAPE:
 		escape_pressed.emit()
 		accept_event()
+
+
+## Grids grow to fit, so the wheel and trackpad should scroll the sections
+## view around them rather than be swallowed here. Returns whether
+## [param event] was a scroll that got passed up.
+func _scroll_parent_with(event: InputEvent) -> bool:
+	var amount := 0.0
+	var wheel := event as InputEventMouseButton
+	if wheel != null and wheel.pressed and not wheel.alt_pressed:
+		if wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
+			amount = -wheel.factor
+		elif wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			amount = wheel.factor
+	var pan := event as InputEventPanGesture
+	if pan != null:
+		amount = pan.delta.y
+	if is_zero_approx(amount):
+		return false
+	var parent := get_parent()
+	while parent != null and not parent is ScrollContainer:
+		parent = parent.get_parent()
+	var scroll := parent as ScrollContainer
+	if scroll == null:
+		return false
+	# The same step a ScrollContainer takes for one wheel notch.
+	scroll.scroll_vertical += roundi(amount * scroll.get_v_scroll_bar().page / 8.0)
+	return true
 
 
 func _get_drag_data(at_position: Vector2) -> Variant:

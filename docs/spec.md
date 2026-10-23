@@ -72,7 +72,7 @@ Shortcuts live in Editor Settings. The toolbar values (hit mode, align, random a
 
 - **Flip semantics:** a true mirror needs a negative scale, which breaks colliders (Jolt rejects it) and lighting. So "flip" is two 90° tips, a 180° turn, and there's no mirror. Confirm once it's in use.
 - **Per-asset overrides:** some assets want their own random range or their own align-to-normal setting (rocks yes, crates no). Leave room in the library's per-entry data, but don't build it until it's needed.
-- **Mesh hit cost:** the list of `MeshInstance3D`s is cached and rebuilt only after a node under the scene root is added or removed. Each hover still walks that list and does an AABB test per instance, so a stage with thousands of meshes may need a spatial index. Measure this on a real level.
+- **Mesh hit cost (measured 2026-10-23):** the list of `MeshInstance3D`s is cached and rebuilt only after a node under the scene root is added or removed. Each hover walks that list with an AABB test per instance. Across one game's levels (4–189 meshes) a hover cost 0.002–0.056 ms on average, worst 0.13 ms on the largest, against about 0.002 ms for the physics ray. No spatial index is needed at that scale; look again past a few thousand meshes.
 
 ## Milestones
 
@@ -80,7 +80,7 @@ Shortcuts live in Editor Settings. The toolbar values (hit mode, align, random a
 2. **Stamping on colliders** (done 2026-10-23): placement mode, the ghost, the physics raycast, click to place, undo, parenting.
 3. **Mesh hits and align to normal** (done 2026-10-23).
 4. **Transform helpers** (done 2026-10-23): rotate and flip shortcuts, scroll to rotate, random rotation and scale, grid snap.
-5. **Real-project adoption:** sync the addon into a game project with `tools/sync_to.sh` and build the first prop libraries.
+5. **Real-project adoption:** the addon was synced into a game project with `tools/sync_to.sh`, enabled, and loads cleanly (2026-10-23). Building the first prop libraries is next, by hand.
 
 ## Testing
 

@@ -1,4 +1,4 @@
-# Asset Drawer
+# <img src="icon.svg" width="40" alt="" align="top"> Asset Drawer
 
 A small Godot 4.7+ editor addon for level building. Organize scenes and models into libraries, pick one from a thumbnail drawer, and click to stamp copies onto colliders or visible meshes in the 3D viewport.
 

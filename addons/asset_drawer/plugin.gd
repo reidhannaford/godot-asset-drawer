@@ -8,26 +8,30 @@ const AssetDrawerPanel := preload("drawer/asset_drawer_panel.gd")
 const AssetPlacer := preload("placement/asset_placer.gd")
 const PlacementBar := preload("placement/placement_bar.gd")
 const PlacementSettings := preload("placement/placement_settings.gd")
+const PlacementShortcuts := preload("placement/placement_shortcuts.gd")
 
 var _dock: EditorDock
 var _panel: AssetDrawerPanel
+var _bar: PlacementBar
 var _placer: AssetPlacer
 
 
 func _enter_tree() -> void:
+	PlacementShortcuts.register()
 	var settings := PlacementSettings.new()
 	settings.restore()
 
 	_panel = AssetDrawerPanel.new()
-	_panel.add_toolbar_control(PlacementBar.new(settings))
+	_bar = PlacementBar.new(settings)
+	_panel.add_toolbar_control(_bar)
 	_placer = AssetPlacer.new()
 	_placer.undo_redo = get_undo_redo()
 	_placer.settings = settings
 	add_child(_placer)
 
 	_panel.asset_armed.connect(_on_asset_armed)
-	_panel.asset_disarmed.connect(_placer.stop)
-	_placer.stopped.connect(_panel.disarm)
+	_panel.asset_disarmed.connect(_on_asset_disarmed)
+	_placer.stopped.connect(_on_placement_stopped)
 	scene_changed.connect(_on_scene_changed)
 	set_input_event_forwarding_always_enabled()
 
@@ -47,6 +51,7 @@ func _exit_tree() -> void:
 	_dock.queue_free()
 	_dock = null
 	_panel = null
+	_bar = null
 	_placer.queue_free()
 	_placer = null
 
@@ -56,8 +61,20 @@ func _forward_3d_gui_input(viewport_camera: Camera3D, event: InputEvent) -> int:
 
 
 func _on_asset_armed(path: String) -> void:
-	if not _placer.start(path):
+	var placing := _placer.start(path)
+	if not placing:
 		_panel.disarm()
+	_bar.show_hint(placing)
+
+
+func _on_asset_disarmed() -> void:
+	_placer.stop()
+	_bar.show_hint(false)
+
+
+func _on_placement_stopped() -> void:
+	_panel.disarm()
+	_bar.show_hint(false)
 
 
 func _on_scene_changed(_scene_root: Node) -> void:

@@ -2,17 +2,24 @@
 extends Node
 ## Placement mode. A ghost of the picked asset follows the mouse over the
 ## edited scene's colliders and/or visible meshes, and each left click stamps
-## a copy into the scene as one undoable action. The plugin forwards 3D
-## viewport input here.
+## a copy into the scene as one undoable action. The ghost shows exactly what
+## the next click places: its turn, tip, random yaw and scale, and snap.
+## The plugin forwards 3D viewport input here; keys also count while the
+## mouse is over a 3D viewport, even when the drawer has focus.
 
 ## Placement ended on its own: Esc, or the asset couldn't be placed.
 signal stopped
 
 const MeshRaycast := preload("mesh_raycast.gd")
 const PlacementSettings := preload("placement_settings.gd")
+const PlacementShortcuts := preload("placement_shortcuts.gd")
 
 ## How see-through the ghost is, from 0 (solid) to 1 (invisible).
 const GHOST_TRANSPARENCY := 0.4
+const TURN_STEP := PI / 2.0
+## Alt+wheel turns this much per notch, or FINE_SPIN_STEP with Shift too.
+const SPIN_STEP := PI / 12.0
+const FINE_SPIN_STEP := PI / 36.0
 
 var undo_redo: EditorUndoRedoManager
 var settings: PlacementSettings
@@ -26,6 +33,19 @@ var _ghost: Node3D
 var _parent: Node
 var _has_hit: bool = false
 var _hit_transform := Transform3D.IDENTITY
+## The last surface hit, kept so a key press can re-pose the ghost without
+## a new raycast.
+var _last_hit: Dictionary = {}
+
+## Yaw from the turn keys and Alt+wheel, around the surface's up.
+var _turn: float = 0.0
+## 90° tips from the tip keys, applied in the asset's own frame.
+var _tip := Basis.IDENTITY
+var _random_yaw: float = 0.0
+var _random_scale: float = 1.0
+var _rng := RandomNumberGenerator.new()
+## The mouse in the editor window, from the motion events seen in _input.
+var _mouse_position := Vector2(-INF, -INF)
 
 
 func _init() -> void:
@@ -71,6 +91,9 @@ func start(path: String) -> bool:
 	root.get_parent().add_child(_ghost)
 	_parent = _placement_parent(root)
 	_mesh_raycast = MeshRaycast.new(root)
+	_turn = 0.0
+	_tip = Basis.IDENTITY
+	_roll()
 	return true
 
 
@@ -84,6 +107,7 @@ func stop() -> void:
 	_parent = null
 	_mesh_raycast = null
 	_has_hit = false
+	_last_hit = {}
 
 
 ## Ends placement and emits [signal stopped], so the drawer can let go of
@@ -113,13 +137,60 @@ func forward_input(camera: Camera3D, event: InputEvent) -> int:
 			_update_hit(camera, button.position)
 			if _has_hit:
 				place(_hit_transform)
+				_roll()
+				# Hit again so the ghost moves onto the copy just placed
+				# rather than sitting inside it until the mouse moves.
+				_update_hit(camera, button.position)
+		return EditorPlugin.AFTER_GUI_INPUT_STOP
+	if button != null and button.alt_pressed and _is_wheel(button.button_index):
+		if button.pressed:
+			var up := button.button_index == MOUSE_BUTTON_WHEEL_UP or button.button_index == MOUSE_BUTTON_WHEEL_LEFT
+			_turn += (1.0 if up else -1.0) * (FINE_SPIN_STEP if button.shift_pressed else SPIN_STEP)
+			_pose_ghost()
 		return EditorPlugin.AFTER_GUI_INPUT_STOP
 
 	var key := event as InputEventKey
-	if key != null and key.pressed and key.keycode == KEY_ESCAPE:
-		cancel()
+	if key != null and handle_key(key):
 		return EditorPlugin.AFTER_GUI_INPUT_STOP
 	return EditorPlugin.AFTER_GUI_INPUT_PASS
+
+
+## Applies a placement key: Esc, or one of the turn, tip and reset shortcuts.
+## Returns whether the key was used.
+func handle_key(key: InputEventKey) -> bool:
+	if not is_placing() or not key.pressed:
+		return false
+	if key.keycode == KEY_ESCAPE and not key.echo:
+		cancel()
+		return true
+	match PlacementShortcuts.action_for(key):
+		PlacementShortcuts.Action.TURN_LEFT:
+			_turn += TURN_STEP
+		PlacementShortcuts.Action.TURN_RIGHT:
+			_turn -= TURN_STEP
+		PlacementShortcuts.Action.TIP_FORWARD:
+			_tip = _tip * Basis(Vector3.RIGHT, TURN_STEP)
+		PlacementShortcuts.Action.TIP_SIDEWAYS:
+			_tip = _tip * Basis(Vector3.BACK, TURN_STEP)
+		PlacementShortcuts.Action.RESET:
+			_turn = 0.0
+			_tip = Basis.IDENTITY
+		_:
+			return false
+	_pose_ghost()
+	return true
+
+
+func _input(event: InputEvent) -> void:
+	if not is_placing():
+		return
+	var motion := event as InputEventMouseMotion
+	if motion != null:
+		_mouse_position = motion.position
+		return
+	var key := event as InputEventKey
+	if key != null and _mouse_over_3d_viewport() and handle_key(key):
+		get_viewport().set_input_as_handled()
 
 
 ## Stamps a copy of the asset at [param global_xform] as one undoable action,
@@ -144,13 +215,39 @@ func place(global_xform: Transform3D) -> Node3D:
 
 
 func _update_hit(camera: Camera3D, screen_position: Vector2) -> void:
-	var hit := _surface_hit(camera, screen_position)
-	_has_hit = not hit.is_empty()
+	_last_hit = _surface_hit(camera, screen_position)
+	_pose_ghost()
+
+
+## Moves the ghost to where the next click would place, or hides it when the
+## mouse is over nothing.
+func _pose_ghost() -> void:
+	_has_hit = not _last_hit.is_empty()
 	if _has_hit:
-		var basis := surface_basis(hit["normal"] as Vector3) if settings.align_to_normal else Basis.IDENTITY
-		_hit_transform = Transform3D(basis, hit["position"] as Vector3)
+		_hit_transform = placement_transform(_last_hit["position"] as Vector3, _last_hit["normal"] as Vector3)
 		_ghost.global_transform = _hit_transform
 	_ghost.visible = _has_hit
+
+
+## Where a copy lands for a hit at [param position] on a surface facing
+## [param normal]: snapped, aligned, turned, tipped, and randomized as the
+## settings say.
+func placement_transform(position: Vector3, normal: Vector3) -> Transform3D:
+	if settings.snap_enabled and settings.snap_step > 0.0:
+		position = snap_to_surface(position, normal, settings.snap_step)
+	var surface := surface_basis(normal) if settings.align_to_normal else Basis.IDENTITY
+	var yaw := _turn + (_random_yaw if settings.random_enabled else 0.0)
+	var scale := _random_scale if settings.random_enabled else 1.0
+	var basis := (surface * Basis(Vector3.UP, yaw) * _tip).scaled(Vector3.ONE * scale)
+	return Transform3D(basis, position)
+
+
+## Snaps [param position] to a world grid of [param step], then slides it
+## back along [param normal] onto the plane it was hit on, so it stays on
+## the surface: a floor snaps X and Z, a wall the two axes across it.
+static func snap_to_surface(position: Vector3, normal: Vector3, step: float) -> Vector3:
+	var snapped := position.snapped(Vector3.ONE * step)
+	return snapped - normal * (snapped - position).dot(normal)
 
 
 ## The rotation that turns world up onto [param normal] by the shortest arc,
@@ -198,6 +295,29 @@ func _placement_parent(root: Node) -> Node:
 			and (target.owner != root or not target.scene_file_path.is_empty()):
 		target = target.get_parent()
 	return target if target != null else root
+
+
+## Picks the next random yaw and scale, so the ghost can show them before
+## the click that uses them.
+func _roll() -> void:
+	_random_yaw = deg_to_rad(_rng.randf_range(0.0, settings.random_yaw_degrees))
+	_random_scale = _rng.randf_range(minf(settings.random_scale_min, settings.random_scale_max),
+			maxf(settings.random_scale_min, settings.random_scale_max))
+
+
+func _is_wheel(button_index: MouseButton) -> bool:
+	return button_index == MOUSE_BUTTON_WHEEL_UP or button_index == MOUSE_BUTTON_WHEEL_DOWN \
+			or button_index == MOUSE_BUTTON_WHEEL_LEFT or button_index == MOUSE_BUTTON_WHEEL_RIGHT
+
+
+## Whether the mouse is over one of the visible 3D editor viewports.
+func _mouse_over_3d_viewport() -> bool:
+	for index: int in 4:
+		var container := EditorInterface.get_editor_viewport_3d(index).get_parent() as Control
+		if container != null and container.is_visible_in_tree() \
+				and container.get_global_rect().has_point(_mouse_position):
+			return true
+	return false
 
 
 ## Fades the ghost, turns off its shadows, and takes its colliders off every

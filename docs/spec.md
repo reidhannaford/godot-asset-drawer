@@ -40,14 +40,24 @@ It is a deliberately small take on [AssetPlacer](https://cookiebadger.itch.io/as
 
 ### Transform helpers
 
-- **Rotate / flip shortcuts** while placing: 90° steps around the vertical axis, plus 90° tips around X and Z. The bindings are `Shortcut`s in Editor Settings under `asset_drawer/`, so they can be rebound.
-- **Scroll to rotate:** a modifier plus the mouse wheel rotates the ghost's yaw in 15° steps (finer with Shift). The modifier must not clash with the viewport's own wheel zoom.
-- **Random rotation / scale:** toggles with ranges in the drawer toolbar, such as yaw 0–360° and uniform scale 0.9–1.1. The roll happens after each placement, so the ghost always shows exactly what the next click will place.
-- **Grid snapping:** a toggle plus a step size in the drawer toolbar. It snaps the hit point's position (on the plane the surface defines, when aligning to normals). Reading Godot's own Node3D snap settings would be nicer, but that isn't public API; check before relying on it.
+The ghost's pose is `surface × yaw × tip`, then uniform scale: the surface rotation (when aligning), then yaw around the surface's up (turn keys, Alt+wheel and random yaw added together), then the tips in the asset's own frame.
+
+- **Turn and tip shortcuts** while placing:
+  - R turns 90° left and Shift+R 90° right.
+  - T tips 90° forward (about the asset's X) and Shift+T 90° sideways (about Z).
+  - Alt+R (Option+R on macOS) resets the turn and tips.
+  - Tipping twice is the flip: a 180° turn, not a mirror (see below).
+  - The keys are registered with `EditorSettings.add_shortcut` under `asset_drawer/`, so they can be rebound in Editor Settings → Shortcuts, and the binding persists.
+  - Keys count when the 3D viewport has focus, and also whenever the mouse is over a 3D viewport, so they work straight after clicking a tile, while the drawer still has focus. The placer's `_input` tracks the mouse from motion events for this.
+  - Unbound keys pass through to the viewport. Turns and tips reset each time placement starts.
+- **Scroll to rotate:** Alt+wheel (Option on macOS) turns 15° per notch, or 5° with Shift as well. Horizontal wheel events count too, because macOS turns Shift+wheel into a horizontal scroll. A plain wheel still zooms. Trackpad pan gestures aren't handled.
+- **Random yaw and scale:** a Random checkbox in the toolbar, plus a ⋮ button for the ranges: yaw from 0 up to N° (default 360) and uniform scale from min to max (default 0.9–1.1). A new roll happens when placement starts and after each click, so the ghost always shows exactly what the next click places.
+- **Grid snapping:** a Snap checkbox and a step field (default 1 m) in the toolbar. The hit point snaps to the world grid, then slides back along the surface normal onto the plane it was hit on. A floor snaps X and Z and keeps its height, a wall snaps the two axes across it, and a slope stays on the slope. There's no grid offset. Godot's own Node3D snap settings aren't public API, so they aren't read.
+- After each click the ghost raycasts again, so it moves onto the copy just placed instead of sitting inside it until the mouse moves.
 
 ### Settings and shortcuts
 
-Per-user settings, such as the shortcuts and the last-used toolbar values, live in Editor Settings or project metadata. Nothing is written to `project.godot`.
+Shortcuts live in Editor Settings. The toolbar values (hit mode, align, random and its ranges, snap and its step) live in the project's editor metadata, through a small `PlacementSettings` object shared by the toolbar and the placer. Nothing is written to `project.godot`.
 
 ## Out of scope (for now)
 
@@ -60,7 +70,7 @@ Per-user settings, such as the shortcuts and the last-used toolbar values, live 
 
 ## Open questions
 
-- **Flip semantics:** a true mirror needs a negative scale, which breaks colliders (Jolt rejects it) and lighting. The plan is to make "flip" a 180° turn, and the X/Z tips 90° turns. Confirm once it's in use.
+- **Flip semantics:** a true mirror needs a negative scale, which breaks colliders (Jolt rejects it) and lighting. So "flip" is two 90° tips, a 180° turn, and there's no mirror. Confirm once it's in use.
 - **Per-asset overrides:** some assets want their own random range or their own align-to-normal setting (rocks yes, crates no). Leave room in the library's per-entry data, but don't build it until it's needed.
 - **Mesh hit cost:** the list of `MeshInstance3D`s is cached and rebuilt only after a node under the scene root is added or removed. Each hover still walks that list and does an AABB test per instance, so a stage with thousands of meshes may need a spatial index. Measure this on a real level.
 
@@ -69,9 +79,9 @@ Per-user settings, such as the shortcuts and the last-used toolbar values, live 
 1. **Libraries and drawer** (done 2026-10-23): the library resource, the dock grid with previews, drag-in from the FileSystem, remove and reorder, the switcher, the filter, remembered open libraries.
 2. **Stamping on colliders** (done 2026-10-23): placement mode, the ghost, the physics raycast, click to place, undo, parenting.
 3. **Mesh hits and align to normal** (done 2026-10-23).
-4. **Transform helpers:** rotate and flip shortcuts, scroll to rotate, random rotation and scale, grid snap.
+4. **Transform helpers** (done 2026-10-23): rotate and flip shortcuts, scroll to rotate, random rotation and scale, grid snap.
 5. **Real-project adoption:** sync the addon into a game project with `tools/sync_to.sh` and build the first prop libraries.
 
 ## Testing
 
-`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. `tools/run_tests.sh` runs `test/drawer_test.gd` headlessly in two passes: libraries, drops, reordering, the filter, restoring from metadata, and moved or missing assets. It then runs `test/placement_test.gd`, which feeds synthetic mouse and key events to the placer through a top-down camera: hovering, clicking, stacking, misses, undo and redo, parenting, each hit mode (a mesh-only plinth, and a collider with no mesh), align to normal on the ramp and the wall, Esc, and arming tiles. The project uses Jolt (the 4.6+ default); the placement test also passed under Godot Physics on 2026-10-23. A windowed editor run that sends events with `Input.parse_input_event` confirmed the plugin really receives viewport input.
+`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. `tools/run_tests.sh` runs `test/drawer_test.gd` headlessly in two passes: libraries, drops, reordering, the filter, restoring from metadata, and moved or missing assets. It then runs `test/placement_test.gd`, which feeds synthetic mouse and key events to the placer through a top-down camera: hovering, clicking, stacking, misses, undo and redo, parenting, each hit mode (a mesh-only plinth, and a collider with no mesh), align to normal on the ramp and the wall, the turn and tip keys, Alt+wheel, random yaw and scale (each copy matches its ghost, and each click re-rolls), snap on floors, walls and slopes, Esc, and arming tiles with the key hint. The project uses Jolt (the 4.6+ default); the placement test also passed under Godot Physics on 2026-10-23. A windowed editor run that sends events with `Input.parse_input_event` confirmed the plugin really receives viewport input.

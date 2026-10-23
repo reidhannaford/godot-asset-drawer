@@ -146,8 +146,13 @@ func _run_one() -> void:
 	hit_mode.select(1)
 	hit_mode.item_selected.emit(1)
 	(bar.get("_align") as Button).button_pressed = true
+	(bar.get("_snap") as Button).button_pressed = true
+	(bar.get("_snap_step") as Range).value = 0.25
+	(bar.get("_random_scale_max") as Range).value = 1.5
 	var placer_settings: Variant = root.find_children("AssetDrawerPlacer", "", true, false)[0].get("settings")
-	_check("placement bar sets the settings", placer_settings.get("hit_mode") == 1 and placer_settings.get("align_to_normal") == true)
+	_check("placement bar sets the settings", placer_settings.get("hit_mode") == 1 and placer_settings.get("align_to_normal") == true
+			and placer_settings.get("snap_enabled") == true and is_equal_approx(placer_settings.get("snap_step"), 0.25)
+			and is_equal_approx(placer_settings.get("random_scale_max"), 1.5))
 
 	var settings := EditorInterface.get_editor_settings()
 	print("META ", settings.get_project_metadata("asset_drawer", "open_libraries", null), " ",
@@ -165,7 +170,11 @@ func _run_two() -> void:
 	_check("placement settings restored", placer_settings.get("hit_mode") == 1 and placer_settings.get("align_to_normal") == true,
 			[placer_settings.get("hit_mode"), placer_settings.get("align_to_normal")])
 	var bar: Variant = root.find_children("AssetDrawerPlacementBar", "", true, false)[0]
-	_check("placement bar shows them", (bar.get("_hit_mode") as OptionButton).selected == 1 and (bar.get("_align") as Button).button_pressed)
+	_check("snap and random settings restored", placer_settings.get("snap_enabled") == true
+			and is_equal_approx(placer_settings.get("snap_step"), 0.25) and is_equal_approx(placer_settings.get("random_scale_max"), 1.5),
+			[placer_settings.get("snap_enabled"), placer_settings.get("snap_step"), placer_settings.get("random_scale_max")])
+	_check("placement bar shows them", (bar.get("_hit_mode") as OptionButton).selected == 1 and (bar.get("_align") as Button).button_pressed
+			and (bar.get("_snap") as Button).button_pressed and is_equal_approx((bar.get("_snap_step") as Range).value, 0.25))
 	_check("thumbnail size restored", _grid.fixed_icon_size == Vector2i(96, 96), _grid.fixed_icon_size)
 
 	# Move rock.tscn on disk and rescan: the uid should follow it.

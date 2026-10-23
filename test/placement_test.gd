@@ -144,6 +144,7 @@ func _run() -> void:
 	EditorInterface.get_selection().clear()
 
 	await _surface_checks(level)
+	_transform_checks(level)
 
 	# The ghost never lands in the saved scene.
 	var packed := PackedScene.new()
@@ -186,6 +187,8 @@ func _drawer_arming() -> void:
 	grid.call("_drop_data", Vector2.ZERO, {"type": "files", "files": PackedStringArray([CRATE, "res://test/props/rock.tscn"])})
 	_panel.call("_on_item_clicked", 0, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	_check("clicking a tile starts placing", _placer.call("is_placing") and _panel.call("armed_entry") != null)
+	var hint: Label = root.find_children("AssetDrawerPlacementBar", "", true, false)[0].get("_hint")
+	_check("key hint shows while placing", hint.visible and hint.text.contains("turn"), hint.text)
 	_panel.call("_on_item_clicked", 1, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	_check("clicking another tile switches asset", _placer.call("is_placing") and _panel.call("armed_entry") == grid.call("entry_at", 1))
 	_panel.call("_on_item_clicked", 1, Vector2.ZERO, MOUSE_BUTTON_LEFT)
@@ -194,6 +197,7 @@ func _drawer_arming() -> void:
 	_panel.call("_on_item_clicked", 0, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	grid.emit_signal("escape_pressed")
 	_check("esc in the drawer lets go", not _placer.call("is_placing") and _panel.call("armed_entry") == null)
+	_check("key hint hides after", not hint.visible)
 
 	_panel.call("_on_item_clicked", 0, Vector2.ZERO, MOUSE_BUTTON_LEFT)
 	var escape := InputEventKey.new()
@@ -289,4 +293,115 @@ func _surface_checks(level: Node3D) -> void:
 
 	settings.set("align_to_normal", false)
 	settings.set("hit_mode", 2)
+	_placer.call("stop")
+
+
+func _key(keycode: Key, shift: bool = false, alt: bool = false) -> InputEventKey:
+	var key := InputEventKey.new()
+	key.keycode = keycode
+	key.shift_pressed = shift
+	key.alt_pressed = alt
+	key.pressed = true
+	return key
+
+
+func _wheel(button_index: MouseButton, screen: Vector2, alt: bool, shift: bool = false) -> int:
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = button_index
+	wheel.position = screen
+	wheel.alt_pressed = alt
+	wheel.shift_pressed = shift
+	wheel.pressed = true
+	return _placer.call("forward_input", _camera, wheel)
+
+
+func _yaw_is(basis: Basis, degrees: float) -> bool:
+	return basis.orthonormalized().is_equal_approx(Basis(Vector3.UP, deg_to_rad(degrees)))
+
+
+## Turn and tip keys, Alt+wheel, random yaw and scale, and grid snap.
+func _transform_checks(level: Node3D) -> void:
+	var settings: Variant = _placer.get("settings")
+	var editor_settings := EditorInterface.get_editor_settings()
+	_check("shortcuts registered", editor_settings.has_shortcut("asset_drawer/turn_left")
+			and editor_settings.has_shortcut("asset_drawer/reset_rotation"))
+	EditorInterface.get_selection().clear()
+	_placer.call("start", CRATE)
+	var ghost: Node3D = _placer.call("ghost")
+	var centre := _look_down_at(Vector3(-7.0, 0.0, 7.0))
+	_motion(centre)
+
+	# Keys.
+	_check("R is used", _placer.call("handle_key", _key(KEY_R)))
+	_check("R turns 90 left", _yaw_is(ghost.global_basis, 90.0), ghost.global_basis)
+	_placer.call("handle_key", _key(KEY_R, true))
+	_placer.call("handle_key", _key(KEY_R, true))
+	_check("Shift+R turns right", _yaw_is(ghost.global_basis, -90.0), ghost.global_basis)
+	_placer.call("handle_key", _key(KEY_R, false, true))
+	_check("Alt+R resets", ghost.global_basis.is_equal_approx(Basis.IDENTITY), ghost.global_basis)
+	_placer.call("handle_key", _key(KEY_T))
+	_check("T tips forward onto Z", ghost.global_basis.y.dot(Vector3.BACK) > 0.999, ghost.global_basis.y)
+	_placer.call("handle_key", _key(KEY_T))
+	_check("T twice flips upside down", ghost.global_basis.y.dot(Vector3.DOWN) > 0.999, ghost.global_basis.y)
+	_placer.call("handle_key", _key(KEY_R, false, true))
+	_placer.call("handle_key", _key(KEY_T, true))
+	_check("Shift+T tips sideways", absf(ghost.global_basis.y.dot(Vector3.UP)) < 0.001 and absf(ghost.global_basis.y.z) < 0.001,
+			ghost.global_basis.y)
+	_placer.call("handle_key", _key(KEY_R, false, true))
+	_check("unbound key passes through", not _placer.call("handle_key", _key(KEY_W))
+			and _placer.call("forward_input", _camera, _key(KEY_W)) == EditorPlugin.AFTER_GUI_INPUT_PASS)
+
+	# Alt+wheel spins; a plain wheel still zooms.
+	_check("alt+wheel is eaten", _wheel(MOUSE_BUTTON_WHEEL_UP, centre, true) == EditorPlugin.AFTER_GUI_INPUT_STOP)
+	_check("alt+wheel turns 15", _yaw_is(ghost.global_basis, 15.0), ghost.global_basis)
+	_wheel(MOUSE_BUTTON_WHEEL_RIGHT, centre, true, true)
+	_check("alt+shift+wheel turns back 5", _yaw_is(ghost.global_basis, 10.0), ghost.global_basis)
+	_check("plain wheel passes through", _wheel(MOUSE_BUTTON_WHEEL_UP, centre, false) == EditorPlugin.AFTER_GUI_INPUT_PASS)
+	_placer.call("handle_key", _key(KEY_R, false, true))
+
+	# Random: each click places exactly what the ghost showed, then re-rolls.
+	settings.set("random_enabled", true)
+	settings.set("random_scale_min", 0.5)
+	settings.set("random_scale_max", 2.0)
+	_placer.call("start", CRATE)
+	ghost = _placer.call("ghost")
+	_motion(centre)
+	var shown: Array[Transform3D] = []
+	var all_match := true
+	var all_in_range := true
+	for i: int in 5:
+		var before := ghost.global_transform
+		shown.append(before)
+		_click(centre)
+		var placed := level.get_child(level.get_child_count() - 1) as Node3D
+		all_match = all_match and placed.global_transform.is_equal_approx(before)
+		var scale := before.basis.get_scale().x
+		all_in_range = all_in_range and scale >= 0.5 - 0.001 and scale <= 2.0 + 0.001
+	_check("random copies match the ghost", all_match)
+	_check("random scale in range", all_in_range, shown)
+	_check("each click re-rolls", not shown[0].basis.is_equal_approx(shown[1].basis) and not shown[1].basis.is_equal_approx(shown[2].basis))
+	var top := level.get_child(level.get_child_count() - 1) as Node3D
+	var top_height := (top.global_basis * Vector3.UP).length()
+	_check("ghost moves onto the copy just placed", ghost.global_position.y > top.global_position.y + top_height * 0.5,
+			[ghost.global_position, top.global_position])
+	settings.set("random_enabled", false)
+	settings.set("random_scale_min", 0.9)
+	settings.set("random_scale_max", 1.1)
+
+	# Snap.
+	settings.set("snap_enabled", true)
+	settings.set("snap_step", 1.0)
+	_motion(_look_down_at(Vector3(8.3, 0.0, 7.6)))
+	_check("snap rounds on the floor", _near(ghost.global_position, Vector3(8.0, 0.0, 8.0)), ghost.global_position)
+	settings.set("snap_step", 0.5)
+	_motion(_look_down_at(Vector3(8.3, 0.0, 7.6)))
+	_check("snap step follows the setting", _near(ghost.global_position, Vector3(8.5, 0.0, 7.5)), ghost.global_position)
+	var on_wall: Vector3 = _placer.call("snap_to_surface", Vector3(1.4, 2.6, -4.85), Vector3.BACK, 1.0)
+	_check("snap on a wall keeps its depth", _near(on_wall, Vector3(1.0, 3.0, -4.85)), on_wall)
+	var slope := Vector3(0.0, cos(deg_to_rad(20.0)), sin(deg_to_rad(20.0)))
+	var hit := Vector3(5.3, 1.2, 0.4)
+	var on_slope: Vector3 = _placer.call("snap_to_surface", hit, slope, 1.0)
+	_check("snap on a slope stays on its plane", absf((on_slope - hit).dot(slope)) < 0.001, on_slope)
+	settings.set("snap_enabled", false)
+	settings.set("snap_step", 1.0)
 	_placer.call("stop")

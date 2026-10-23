@@ -65,14 +65,22 @@ func item_for(folder: AssetDrawerFolder) -> TreeItem:
 	return null
 
 
-## Starts renaming [param folder] in place.
+## Starts renaming [param folder] in place. The edit box opens once the
+## tree has drawn: an item created this frame has no on-screen rect yet,
+## so editing it straight away would open the box empty and off the row.
 func begin_rename(folder: AssetDrawerFolder) -> void:
 	var item := item_for(folder)
 	if item == null or folder == _library:
 		return
 	item.select(0)
 	scroll_to_item(item)
-	edit_selected(true)
+	_edit_folder.call_deferred(folder)
+
+
+func _edit_folder(folder: AssetDrawerFolder) -> void:
+	var item := get_selected()
+	if item != null and item.get_metadata(0) == folder:
+		edit_selected(true)
 
 
 ## Applies a drop on [param item]: [param section] is -1 above it, 0 on it,
@@ -186,6 +194,14 @@ func _on_item_collapsed(item: TreeItem) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	var mouse := event as InputEventMouseButton
+	if mouse != null:
+		if mouse.pressed and mouse.double_click and mouse.button_index == MOUSE_BUTTON_LEFT:
+			var item := get_item_at_position(mouse.position)
+			if item != null and item.get_metadata(0) != _library:
+				begin_rename(item.get_metadata(0) as AssetDrawerFolder)
+				accept_event()
+		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo or get_selected() == null:
 		return

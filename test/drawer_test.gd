@@ -11,6 +11,9 @@ var _frame := 0
 var _failures := 0
 var _panel: Variant
 var _grid: Variant
+## Tree draws so far, and how many there had been when its edit box last opened.
+var _draws := 0
+var _draws_at_popup := -1
 
 
 func _process(_delta: float) -> bool:
@@ -42,6 +45,23 @@ func _names() -> PackedStringArray:
 	for i: int in _grid.item_count:
 		out.append(_grid.get_item_text(i))
 	return out
+
+
+## The Tree's in-place edit popup, one of its internal children.
+func _tree_editor(tree: Tree) -> Popup:
+	for child: Node in tree.get_children(true):
+		if child is Popup and not child.find_children("*", "LineEdit", true, false).is_empty():
+			return child as Popup
+	return null
+
+
+func _editor_line_edit(editor: Popup) -> LineEdit:
+	return editor.find_children("*", "LineEdit", true, false)[0] as LineEdit
+
+
+## What the edit popup shows, or "" while it's closed.
+func _editing_text(editor: Popup) -> String:
+	return _editor_line_edit(editor).text if editor != null and editor.visible else ""
 
 
 func _lib_names(library: Variant) -> PackedStringArray:
@@ -283,9 +303,20 @@ func _folder_checks() -> void:
 	await process_frame
 	_check("a drop during a rescan waits for it", _describe(lib) == "root[barrel,crate,pillar,rock]{}", [scanning, _describe(lib)])
 
+	# A new folder opens for renaming, but only once the tree has drawn it:
+	# the edit box takes its place from the drawn item, so an item edited
+	# the frame it was created comes up empty and off its row.
+	var editor := _tree_editor(tree)
+	tree.draw.connect(func() -> void: _draws += 1)
+	editor.about_to_popup.connect(func() -> void: _draws_at_popup = _draws)
 	var level: Variant = _panel.call("_new_folder", lib)
 	_check("new folder is selected", _panel.call("selected_folder") == level and level.get("name") == "New Folder")
-	_panel.call("_rename_folder", level, "Level")
+	_check("new folder isn't edited before the tree draws it", not editor.visible, editor.visible)
+	await process_frame
+	_check("new folder starts renaming once drawn", _editing_text(editor) == "New Folder" and _draws_at_popup == _draws and _draws > 0
+			and tree.call("get_selected") == tree.call("item_for", level), [_editing_text(editor), _draws_at_popup, _draws])
+	_editor_line_edit(editor).text_submitted.emit("Level")
+	_check("submitting the edit renames", level.get("name") == "Level" and not editor.visible, [level.get("name"), editor.visible])
 	var pickups: Variant = _panel.call("_new_folder", lib)
 	_panel.call("_rename_folder", pickups, "Pick-ups")
 	var items: Variant = _panel.call("_new_folder", pickups)
@@ -293,6 +324,25 @@ func _folder_checks() -> void:
 	_check("folders nest", _describe(lib) == "root[barrel,crate,pillar,rock]{Level[]{},Pick-ups[]{Items[]{}}}", _describe(lib))
 	_check("tree shows every folder", tree.call("item_for", items) != null and tree.call("item_for", lib) == tree.call("get_root")
 			and (tree.call("item_for", items) as TreeItem).get_parent() == tree.call("item_for", pickups))
+
+	# Double-clicking a folder renames it; the library's own row doesn't.
+	# (Let the tree draw first: item rects use the scroll offset it drew with.)
+	editor.hide()
+	await process_frame
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.double_click = true
+	click.position = (tree.call("get_item_area_rect", tree.call("item_for", pickups)) as Rect2).get_center()
+	tree.call("_gui_input", click)
+	await process_frame
+	_check("double-click renames a folder", _editing_text(editor) == "Pick-ups" and tree.call("get_selected") == tree.call("item_for", pickups),
+			[_editing_text(editor), tree.call("get_item_at_position", click.position)])
+	editor.hide()
+	click.position = (tree.call("get_item_area_rect", tree.call("get_root")) as Rect2).get_center()
+	tree.call("_gui_input", click)
+	await process_frame
+	_check("double-click on the library row doesn't rename", not editor.visible)
 
 	# Filing: FileSystem files and tiles dropped on tree folders.
 	_panel.call("_on_folder_selected", lib)

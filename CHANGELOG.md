@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- A new folder opens for renaming right away. The rename box used to open empty and off the row, because the tree hadn't drawn the new item yet.
+- Double-clicking a folder renames it.
+
 ## 0.1.0 (alpha), 2026-10-23
 
 First public release.

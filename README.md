@@ -26,7 +26,7 @@ Godot 4.7 or later. Pure GDScript, editor-only, no C# or GDExtension. Developed 
 ## Quick start
 
 1. In the Assets dock, click **New library…** and save a `.tres` somewhere in your project, say `res://libraries/props.tres`. The file name is the library's name.
-2. Drag scenes or models from the FileSystem dock onto the grid. Drop a folder to add every scene inside it. Right-click the folder tree on the left for **New Folder**, **Rename** and **Delete Folder**; drop tiles or files onto a folder to file them there.
+2. Drag scenes or models from the FileSystem dock onto the grid. Drop a folder to add every scene inside it. Right-click the folder tree on the left for **New Folder**, **Rename** and **Delete Folder**; a new folder opens for renaming straight away, and a double-click renames a folder. Drop tiles or files onto a folder to file them there.
 3. Open a 3D scene and click a tile. The tile tints, a ghost follows your mouse in the viewport, and each left click places a copy. Press **Esc**, or click the tile again, to stop.
 4. Copies go under the node you had selected when you clicked the tile, or under the scene root. Every placement is one entry in the scene's undo history.
 

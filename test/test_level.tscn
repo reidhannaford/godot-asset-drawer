@@ -1,0 +1,73 @@
+[gd_scene format=3]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_hwtdh"]
+
+[sub_resource type="Sky" id="Sky_8rkqs"]
+sky_material = SubResource("ProceduralSkyMaterial_hwtdh")
+
+[sub_resource type="Environment" id="Environment_klfgi"]
+background_mode = 2
+sky = SubResource("Sky_8rkqs")
+
+[sub_resource type="BoxMesh" id="BoxMesh_ls30l"]
+size = Vector3(20, 0.2, 20)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_kgsy5"]
+size = Vector3(20, 0.2, 20)
+
+[sub_resource type="BoxMesh" id="BoxMesh_oxjuh"]
+size = Vector3(4, 0.2, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_k117l"]
+size = Vector3(4, 0.2, 6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_piqwm"]
+size = Vector3(6, 3, 0.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ic46k"]
+size = Vector3(6, 3, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hhn1m"]
+size = Vector3(2, 1, 2)
+
+[node name="TestLevel" type="Node3D" unique_id=523852195]
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1210319741]
+transform = Transform3D(0.8660254, -0.38302222, 0.32139382, 0, 0.64278764, 0.76604444, -0.5, -0.66341394, 0.5566704, 0, 0, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1853362151]
+environment = SubResource("Environment_klfgi")
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=458684110]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+mesh = SubResource("BoxMesh_ls30l")
+
+[node name="Body" type="StaticBody3D" parent="Floor" unique_id=1961228656]
+
+[node name="Shape" type="CollisionShape3D" parent="Floor/Body" unique_id=199901807]
+shape = SubResource("BoxShape3D_kgsy5")
+
+[node name="Ramp" type="MeshInstance3D" parent="." unique_id=1896487215]
+transform = Transform3D(1, 0, 0, 0, 0.9396926, -0.34202012, 0, 0.34202012, 0.9396926, 5, 1, 0)
+mesh = SubResource("BoxMesh_oxjuh")
+
+[node name="Body" type="StaticBody3D" parent="Ramp" unique_id=106713068]
+
+[node name="Shape" type="CollisionShape3D" parent="Ramp/Body" unique_id=741549864]
+shape = SubResource("BoxShape3D_k117l")
+
+[node name="Wall" type="MeshInstance3D" parent="." unique_id=489601024]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1.5, -5)
+mesh = SubResource("BoxMesh_piqwm")
+
+[node name="Body" type="StaticBody3D" parent="Wall" unique_id=155441228]
+
+[node name="Shape" type="CollisionShape3D" parent="Wall/Body" unique_id=2013673512]
+shape = SubResource("BoxShape3D_ic46k")
+
+[node name="MeshOnlyPlinth" type="MeshInstance3D" parent="." unique_id=109420450]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0.5, 3)
+mesh = SubResource("BoxMesh_hhn1m")
+
+[node name="Props" type="Node3D" parent="." unique_id=55751607]

@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[sub_resource type="SphereMesh" id="SphereMesh_r53sb"]
+height = 0.8
+
+[node name="Rock" type="Node3D" unique_id=828209365]
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1562415021]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+mesh = SubResource("SphereMesh_r53sb")

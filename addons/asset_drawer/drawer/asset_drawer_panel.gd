@@ -28,6 +28,7 @@ var _armed: AssetDrawerEntry
 var _previews: Dictionary[String, Texture2D] = {}
 var _pending_previews: Dictionary[String, bool] = {}
 
+var _toolbar: HFlowContainer
 var _switcher: OptionButton
 var _new_button: Button
 var _open_button: Button
@@ -44,31 +45,32 @@ func _init() -> void:
 	name = "AssetDrawer"
 	size_flags_vertical = SIZE_EXPAND_FILL
 
-	var toolbar := HBoxContainer.new()
-	add_child(toolbar)
+	# Wraps onto more rows when the drawer is docked somewhere narrow.
+	_toolbar = HFlowContainer.new()
+	add_child(_toolbar)
 
 	_switcher = OptionButton.new()
 	_switcher.custom_minimum_size.x = 160.0
 	_switcher.fit_to_longest_item = false
 	_switcher.tooltip_text = "Active library"
 	_switcher.item_selected.connect(_on_switcher_selected)
-	toolbar.add_child(_switcher)
+	_toolbar.add_child(_switcher)
 
 	_new_button = _make_tool_button("New library…", _on_new_pressed)
-	toolbar.add_child(_new_button)
+	_toolbar.add_child(_new_button)
 	_open_button = _make_tool_button("Open library…", _on_open_pressed)
-	toolbar.add_child(_open_button)
+	_toolbar.add_child(_open_button)
 	_close_button = _make_tool_button("Close library", _close_active)
-	toolbar.add_child(_close_button)
+	_toolbar.add_child(_close_button)
 
-	toolbar.add_child(VSeparator.new())
+	_toolbar.add_child(VSeparator.new())
 
 	_filter = LineEdit.new()
 	_filter.placeholder_text = "Filter assets"
 	_filter.clear_button_enabled = true
 	_filter.size_flags_horizontal = SIZE_EXPAND_FILL
 	_filter.text_changed.connect(_on_filter_changed)
-	toolbar.add_child(_filter)
+	_toolbar.add_child(_filter)
 
 	_size_slider = HSlider.new()
 	_size_slider.min_value = MIN_THUMBNAIL
@@ -79,7 +81,7 @@ func _init() -> void:
 	_size_slider.size_flags_vertical = SIZE_SHRINK_CENTER
 	_size_slider.tooltip_text = "Thumbnail size"
 	_size_slider.value_changed.connect(_on_size_changed)
-	toolbar.add_child(_size_slider)
+	_toolbar.add_child(_size_slider)
 
 	_grid = AssetGrid.new()
 	_grid.files_dropped.connect(_on_files_dropped)
@@ -132,6 +134,12 @@ func open_library(library: AssetDrawerLibrary) -> void:
 
 func active_library() -> AssetDrawerLibrary:
 	return _active
+
+
+## Adds [param control] to the end of the toolbar, after a separator.
+func add_toolbar_control(control: Control) -> void:
+	_toolbar.add_child(VSeparator.new())
+	_toolbar.add_child(control)
 
 
 func armed_entry() -> AssetDrawerEntry:

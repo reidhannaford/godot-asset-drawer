@@ -2,7 +2,7 @@
 
 A small Godot 4.7+ editor addon for level building. You organize scenes and models into libraries, pick one from a thumbnail drawer, and click to stamp copies onto colliders or visible meshes in the 3D viewport.
 
-Status: the drawer and click-to-stamp onto colliders work; mesh hits, align to normal and the transform helpers are next. See [docs/spec.md](docs/spec.md) for the plan.
+Status: the drawer works, and so does click-to-stamp onto colliders and/or visible meshes, with optional align to normal. The transform helpers are next. See [docs/spec.md](docs/spec.md) for the plan.
 
 ## Layout
 

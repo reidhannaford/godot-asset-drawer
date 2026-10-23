@@ -143,6 +143,8 @@ func _run() -> void:
 			[props.get_child_count(), in_props.get_child_count()])
 	EditorInterface.get_selection().clear()
 
+	await _surface_checks(level)
+
 	# The ghost never lands in the saved scene.
 	var packed := PackedScene.new()
 	packed.pack(level)
@@ -151,6 +153,7 @@ func _run() -> void:
 	saved.free()
 
 	# Esc stops placement and frees the ghost.
+	_placer.call("start", CRATE)
 	var escape := InputEventKey.new()
 	escape.keycode = KEY_ESCAPE
 	escape.pressed = true
@@ -209,3 +212,81 @@ func _drawer_arming() -> void:
 	_check("closing the library stops placing", not _placer.call("is_placing"))
 	DirAccess.remove_absolute("res://test_tmp_arming.tres")
 	await process_frame
+
+
+func _near(a: Vector3, b: Vector3) -> bool:
+	return a.distance_to(b) < 0.01
+
+
+## Hit modes against meshes without colliders and colliders without meshes,
+## and align to normal on the ramp and the wall.
+func _surface_checks(level: Node3D) -> void:
+	var settings: Variant = _placer.get("settings")
+	EditorInterface.get_selection().clear()
+	_placer.call("start", CRATE)
+	var ghost: Node3D = _placer.call("ghost")
+
+	# MeshOnlyPlinth's top is at y=1 and has no collider.
+	var centre := _look_down_at(Vector3(-4.0, 0.0, 3.0))
+	settings.set("hit_mode", 0)
+	_motion(centre)
+	_check("colliders mode passes through a mesh-only plinth", _near(ghost.global_position, Vector3(-4.0, 0.0, 3.0)), ghost.global_position)
+	settings.set("hit_mode", 1)
+	_motion(centre)
+	_check("meshes mode lands on the plinth", _near(ghost.global_position, Vector3(-4.0, 1.0, 3.0)), ghost.global_position)
+	settings.set("hit_mode", 2)
+	_motion(centre)
+	_check("both mode lands on the plinth", _near(ghost.global_position, Vector3(-4.0, 1.0, 3.0)), ghost.global_position)
+
+	# A collider with no mesh, 3 m up: only the collider modes see it.
+	var blocker := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(2.0, 0.2, 2.0)
+	shape.shape = box
+	blocker.add_child(shape)
+	level.add_child(blocker)
+	blocker.global_position = Vector3(6.0, 3.0, -6.0)
+	await physics_frame
+	centre = _look_down_at(Vector3(6.0, 0.0, -6.0))
+	_motion(centre)
+	_check("both mode lands on a mesh-less collider", _near(ghost.global_position, Vector3(6.0, 3.1, -6.0)), ghost.global_position)
+	settings.set("hit_mode", 1)
+	_motion(centre)
+	_check("meshes mode ignores a mesh-less collider", _near(ghost.global_position, Vector3(6.0, 0.0, -6.0)), ghost.global_position)
+	blocker.free()
+
+	# The ramp is tilted 20 degrees about X; align on, then off.
+	var ramp_normal := Vector3(0.0, cos(deg_to_rad(20.0)), sin(deg_to_rad(20.0)))
+	settings.set("align_to_normal", true)
+	centre = _look_down_at(Vector3(5.0, 0.0, 0.0))
+	for mode: int in [0, 1]:
+		settings.set("hit_mode", mode)
+		_motion(centre)
+		var up := ghost.global_basis.y
+		_check("ramp hit aligns the ghost (mode %d)" % mode, up.dot(ramp_normal) > 0.999 and absf(ghost.global_position.y - 1.106) < 0.01,
+				[up, ghost.global_position])
+	settings.set("hit_mode", 2)
+	_click(centre)
+	var on_ramp := level.get_child(level.get_child_count() - 1) as Node3D
+	_check("placed crate keeps the ramp tilt", on_ramp.global_basis.y.dot(ramp_normal) > 0.999 and on_ramp.global_basis.is_conformal(),
+			on_ramp.global_basis)
+	_check("aligned crate is orthonormal", is_equal_approx(on_ramp.global_basis.determinant(), 1.0), on_ramp.global_basis.determinant())
+	settings.set("align_to_normal", false)
+	_motion(centre)
+	_check("align off keeps the ghost upright", ghost.global_basis.is_equal_approx(Basis.IDENTITY), ghost.global_basis)
+
+	# The wall's front face points +Z at z=-4.85; look at it head-on.
+	settings.set("align_to_normal", true)
+	settings.set("hit_mode", 1)
+	_camera.global_transform = Transform3D(Basis.IDENTITY, Vector3(-4.0, 1.5, 5.0))
+	_motion(_camera.get_viewport().get_visible_rect().size / 2.0)
+	_check("wall hit by mesh", _near(ghost.global_position, Vector3(-4.0, 1.5, -4.85)), ghost.global_position)
+	_check("wall hit aligns up to the wall normal", ghost.global_basis.y.dot(Vector3.BACK) > 0.999, ghost.global_basis.y)
+
+	var ceiling: Basis = _placer.call("surface_basis", Vector3.DOWN)
+	_check("ceiling basis flips up to down", ceiling.y.dot(Vector3.DOWN) > 0.999 and is_equal_approx(ceiling.determinant(), 1.0), ceiling)
+
+	settings.set("align_to_normal", false)
+	settings.set("hit_mode", 2)
+	_placer.call("stop")

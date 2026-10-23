@@ -6,6 +6,8 @@ extends EditorPlugin
 
 const AssetDrawerPanel := preload("drawer/asset_drawer_panel.gd")
 const AssetPlacer := preload("placement/asset_placer.gd")
+const PlacementBar := preload("placement/placement_bar.gd")
+const PlacementSettings := preload("placement/placement_settings.gd")
 
 var _dock: EditorDock
 var _panel: AssetDrawerPanel
@@ -13,9 +15,14 @@ var _placer: AssetPlacer
 
 
 func _enter_tree() -> void:
+	var settings := PlacementSettings.new()
+	settings.restore()
+
 	_panel = AssetDrawerPanel.new()
+	_panel.add_toolbar_control(PlacementBar.new(settings))
 	_placer = AssetPlacer.new()
 	_placer.undo_redo = get_undo_redo()
+	_placer.settings = settings
 	add_child(_placer)
 
 	_panel.asset_armed.connect(_on_asset_armed)

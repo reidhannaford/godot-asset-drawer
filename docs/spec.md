@@ -33,11 +33,10 @@ It is a deliberately small take on [AssetPlacer](https://cookiebadger.itch.io/as
 ### Surface hits
 
 - **Colliders:** a raycast through `PhysicsDirectSpaceState3D` of the edited scene's world.
-- **Visible meshes:** a ray-vs-triangle test against `MeshInstance3D`s in the edited scene. Rule out each instance by its global AABB first, then run `TriangleMesh.intersect_ray` in mesh-local space, caching `Mesh.generate_triangle_mesh()` per mesh. This lets you place on geometry that has no colliders.
-- A hit mode dropdown offers Colliders / Meshes / Both. The default is Both, and the nearest hit wins.
+- **Visible meshes:** a ray-vs-triangle test against the visible `MeshInstance3D`s in the edited scene, including those inside placed instances. Each instance is ruled out by its global AABB first, then `TriangleMesh.intersect_ray` runs in mesh-local space, with `Mesh.generate_triangle_mesh()` cached per mesh for as long as placement lasts. This lets you place on geometry that has no colliders. Hits on back faces get a normal flipped toward the camera. CSG, MultiMesh and GridMap geometry isn't tested, and skinned meshes are tested in their rest pose.
+- The drawer toolbar has a hit mode dropdown (Colliders / Meshes / Colliders + meshes) and an Align checkbox. The default is both, and the nearer hit wins. Both settings are remembered per project. The toolbar wraps onto more rows when the drawer is docked somewhere narrow.
 - When nothing is hit, the ghost hides and clicks do nothing. There is no fallback plane.
-- Until align to normal lands, the asset's origin goes exactly at the hit point with no rotation, so a hit on a wall leaves the asset half inside it.
-- **Align to normal** is a toggle: the asset's up axis follows the surface normal, and yaw is applied around that normal.
+- **Align to normal** (off by default): the asset's up axis follows the surface normal, using the shortest-arc rotation from world up. A flat floor gives no rotation, slopes tip the asset as little as possible, and ceilings flip it about X. Yaw from the transform helpers will be applied around that normal. With align off, assets stay upright, so a hit on a wall leaves the asset half inside it.
 
 ### Transform helpers
 
@@ -63,16 +62,16 @@ Per-user settings, such as the shortcuts and the last-used toolbar values, live 
 
 - **Flip semantics:** a true mirror needs a negative scale, which breaks colliders (Jolt rejects it) and lighting. The plan is to make "flip" a 180° turn, and the X/Z tips 90° turns. Confirm once it's in use.
 - **Per-asset overrides:** some assets want their own random range or their own align-to-normal setting (rocks yes, crates no). Leave room in the library's per-entry data, but don't build it until it's needed.
-- **Mesh hit cost:** in large scenes, gathering every `MeshInstance3D` on each mouse move may need a cache that `SceneTree.node_added`/`node_removed` keeps up to date.
+- **Mesh hit cost:** the list of `MeshInstance3D`s is cached and rebuilt only after a node under the scene root is added or removed. Each hover still walks that list and does an AABB test per instance, so a stage with thousands of meshes may need a spatial index. Measure this on a real level.
 
 ## Milestones
 
 1. **Libraries and drawer** (done 2026-10-23): the library resource, the dock grid with previews, drag-in from the FileSystem, remove and reorder, the switcher, the filter, remembered open libraries.
 2. **Stamping on colliders** (done 2026-10-23): placement mode, the ghost, the physics raycast, click to place, undo, parenting.
-3. **Mesh hits and align to normal.**
+3. **Mesh hits and align to normal** (done 2026-10-23).
 4. **Transform helpers:** rotate and flip shortcuts, scroll to rotate, random rotation and scale, grid snap.
 5. **Real-project adoption:** sync the addon into a game project with `tools/sync_to.sh` and build the first prop libraries.
 
 ## Testing
 
-`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. `tools/run_tests.sh` runs `test/drawer_test.gd` headlessly in two passes: libraries, drops, reordering, the filter, restoring from metadata, and moved or missing assets. It then runs `test/placement_test.gd`, which feeds synthetic mouse and key events to the placer through a top-down camera: hovering, clicking, stacking, misses, undo and redo, parenting, Esc, and arming tiles. The project uses Jolt (the 4.6+ default); the placement test also passed under Godot Physics on 2026-10-23. A windowed editor run that sends events with `Input.parse_input_event` confirmed the plugin really receives viewport input.
+`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. `tools/run_tests.sh` runs `test/drawer_test.gd` headlessly in two passes: libraries, drops, reordering, the filter, restoring from metadata, and moved or missing assets. It then runs `test/placement_test.gd`, which feeds synthetic mouse and key events to the placer through a top-down camera: hovering, clicking, stacking, misses, undo and redo, parenting, each hit mode (a mesh-only plinth, and a collider with no mesh), align to normal on the ramp and the wall, Esc, and arming tiles. The project uses Jolt (the 4.6+ default); the placement test also passed under Godot Physics on 2026-10-23. A windowed editor run that sends events with `Input.parse_input_event` confirmed the plugin really receives viewport input.

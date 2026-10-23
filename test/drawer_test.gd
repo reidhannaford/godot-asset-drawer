@@ -141,6 +141,14 @@ func _run_one() -> void:
 	(_panel.get("_size_slider") as HSlider).value = 96
 	_check("thumbnail size applied", _grid.fixed_icon_size == Vector2i(96, 96))
 
+	var bar: Variant = root.find_children("AssetDrawerPlacementBar", "", true, false)[0]
+	var hit_mode: OptionButton = bar.get("_hit_mode")
+	hit_mode.select(1)
+	hit_mode.item_selected.emit(1)
+	(bar.get("_align") as Button).button_pressed = true
+	var placer_settings: Variant = root.find_children("AssetDrawerPlacer", "", true, false)[0].get("settings")
+	_check("placement bar sets the settings", placer_settings.get("hit_mode") == 1 and placer_settings.get("align_to_normal") == true)
+
 	var settings := EditorInterface.get_editor_settings()
 	print("META ", settings.get_project_metadata("asset_drawer", "open_libraries", null), " ",
 			settings.get_project_metadata("asset_drawer", "active_library", null))
@@ -153,6 +161,11 @@ func _run_two() -> void:
 	var active: Variant = _panel.call("active_library")
 	_check("active restored", active != null and active.resource_path == LIB_A)
 	_check("order restored", _names() == PackedStringArray(["rock", "crate", "barrel"]), _names())
+	var placer_settings: Variant = root.find_children("AssetDrawerPlacer", "", true, false)[0].get("settings")
+	_check("placement settings restored", placer_settings.get("hit_mode") == 1 and placer_settings.get("align_to_normal") == true,
+			[placer_settings.get("hit_mode"), placer_settings.get("align_to_normal")])
+	var bar: Variant = root.find_children("AssetDrawerPlacementBar", "", true, false)[0]
+	_check("placement bar shows them", (bar.get("_hit_mode") as OptionButton).selected == 1 and (bar.get("_align") as Button).button_pressed)
 	_check("thumbnail size restored", _grid.fixed_icon_size == Vector2i(96, 96), _grid.fixed_icon_size)
 
 	# Move rock.tscn on disk and rescan: the uid should follow it.

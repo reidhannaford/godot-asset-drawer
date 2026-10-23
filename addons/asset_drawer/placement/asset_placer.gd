@@ -1,18 +1,24 @@
 @tool
 extends Node
 ## Placement mode. A ghost of the picked asset follows the mouse over the
-## edited scene's colliders, and each left click stamps a copy into the
-## scene as one undoable action. The plugin forwards 3D viewport input here.
+## edited scene's colliders and/or visible meshes, and each left click stamps
+## a copy into the scene as one undoable action. The plugin forwards 3D
+## viewport input here.
 
 ## Placement ended on its own: Esc, or the asset couldn't be placed.
 signal stopped
+
+const MeshRaycast := preload("mesh_raycast.gd")
+const PlacementSettings := preload("placement_settings.gd")
 
 ## How see-through the ghost is, from 0 (solid) to 1 (invisible).
 const GHOST_TRANSPARENCY := 0.4
 
 var undo_redo: EditorUndoRedoManager
+var settings: PlacementSettings
 
 var _scene: PackedScene
+var _mesh_raycast: MeshRaycast
 var _scene_path: String = ""
 ## Lives beside the edited scene's root, in the same world but outside the
 ## scene, so it never shows in the Scene dock or gets saved.
@@ -64,6 +70,7 @@ func start(path: String) -> bool:
 	_make_ghostly(_ghost)
 	root.get_parent().add_child(_ghost)
 	_parent = _placement_parent(root)
+	_mesh_raycast = MeshRaycast.new(root)
 	return true
 
 
@@ -75,6 +82,7 @@ func stop() -> void:
 	_scene = null
 	_scene_path = ""
 	_parent = null
+	_mesh_raycast = null
 	_has_hit = false
 
 
@@ -139,18 +147,42 @@ func _update_hit(camera: Camera3D, screen_position: Vector2) -> void:
 	var hit := _surface_hit(camera, screen_position)
 	_has_hit = not hit.is_empty()
 	if _has_hit:
-		_hit_transform = Transform3D(Basis.IDENTITY, hit["position"] as Vector3)
+		var basis := surface_basis(hit["normal"] as Vector3) if settings.align_to_normal else Basis.IDENTITY
+		_hit_transform = Transform3D(basis, hit["position"] as Vector3)
 		_ghost.global_transform = _hit_transform
 	_ghost.visible = _has_hit
 
 
-## Where a ray through [param screen_position] first meets a collider, as
-## {position, normal}, or an empty dictionary when it hits nothing.
+## The rotation that turns world up onto [param normal] by the shortest arc,
+## so a flat floor gives no rotation and slopes tip the asset the least.
+static func surface_basis(normal: Vector3) -> Basis:
+	if normal.dot(Vector3.UP) < -0.9999:
+		# Straight down: every axis is a shortest arc; pick a flip about X.
+		return Basis(Vector3.RIGHT, PI)
+	return Basis(Quaternion(Vector3.UP, normal.normalized()))
+
+
+## Where a ray through [param screen_position] first meets a surface the hit
+## mode allows, as {position, normal}, or an empty dictionary on a miss.
 func _surface_hit(camera: Camera3D, screen_position: Vector2) -> Dictionary:
 	var from := camera.project_ray_origin(screen_position)
 	var to := from + camera.project_ray_normal(screen_position) * camera.far
+	var collider_hit := {}
+	var mesh_hit := {}
+	if settings.hit_mode != PlacementSettings.HitMode.MESHES:
+		collider_hit = _collider_hit(camera.get_world_3d(), from, to)
+	if settings.hit_mode != PlacementSettings.HitMode.COLLIDERS:
+		mesh_hit = _mesh_raycast.cast(from, to)
+	if collider_hit.is_empty() or mesh_hit.is_empty():
+		return mesh_hit if collider_hit.is_empty() else collider_hit
+	var collider_distance := from.distance_squared_to(collider_hit["position"] as Vector3)
+	var mesh_distance := from.distance_squared_to(mesh_hit["position"] as Vector3)
+	return collider_hit if collider_distance <= mesh_distance else mesh_hit
+
+
+func _collider_hit(world: World3D, from: Vector3, to: Vector3) -> Dictionary:
 	var query := PhysicsRayQueryParameters3D.create(from, to)
-	var hit := camera.get_world_3d().direct_space_state.intersect_ray(query)
+	var hit := world.direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return {}
 	return {"position": hit["position"], "normal": hit["normal"]}

@@ -10,6 +10,7 @@ signal files_dropped(paths: PackedStringArray, before: AssetDrawerEntry)
 ## Items from this grid were dragged to just before [param before].
 signal entries_moved(entries: Array[AssetDrawerEntry], before: AssetDrawerEntry)
 signal delete_pressed
+signal escape_pressed
 
 ## Key the grid adds to its own drag data so it can tell a reorder from a
 ## FileSystem drop. The rest of the data looks like a FileSystem drag, so
@@ -64,12 +65,23 @@ func select_entries(entries: Array[AssetDrawerEntry]) -> void:
 			select(index, false)
 
 
+## Tints the tile for [param entry] (the one being placed), or clears the
+## tint when it's null.
+func highlight(entry: AssetDrawerEntry) -> void:
+	var tint := get_theme_color(&"accent_color", &"Editor") * Color(1.0, 1.0, 1.0, 0.35)
+	for index: int in item_count:
+		set_item_custom_bg_color(index, tint if entry != null and entry_at(index) == entry else Color.TRANSPARENT)
+
+
 func _gui_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
-	if key != null and key.pressed and not key.echo \
-			and (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE) \
-			and not get_selected_items().is_empty():
+	if key == null or not key.pressed or key.echo:
+		return
+	if (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE) and not get_selected_items().is_empty():
 		delete_pressed.emit()
+		accept_event()
+	elif key.keycode == KEY_ESCAPE:
+		escape_pressed.emit()
 		accept_event()
 
 

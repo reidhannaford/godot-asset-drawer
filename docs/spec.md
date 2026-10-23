@@ -24,10 +24,10 @@ It is a deliberately small take on [AssetPlacer](https://cookiebadger.itch.io/as
 
 ### Placement
 
-- Click a tile to enter placement mode with that asset. Click it again, or press Esc, to leave. Right-click is left alone, because the 3D viewport uses it for freelook.
-- While placing, a ghost instance of the asset follows the cursor. Each left click stamps one copy, and you stay in placement mode.
-- The ghost isn't part of the edited scene: it has no owner, it never shows in the Scene dock, and it's never saved. Its collision objects are disabled, so the placement raycasts never hit it.
-- Placed nodes go under the node that was selected when placement started, or under the scene root if nothing was selected. They are added with readable unique names and the edited scene root as owner, and the selection isn't changed, so repeated clicks keep filling the same parent.
+- Click a tile to enter placement mode with that asset; the tile is tinted while it's armed. Click it again, or press Esc in the viewport or the drawer, to leave. Shift- and Cmd/Ctrl-clicks only change the selection. Removing the armed asset, closing its library, or switching scene tabs also ends placement. Right-click is left alone, because the 3D viewport uses it for freelook.
+- While placing, a see-through, shadowless ghost of the asset follows the cursor. Each left click stamps one copy, and you stay in placement mode. Left clicks are always eaten while placing, even on a miss, so they never change the selection. Alt+left-click passes through for the viewport's own use. The plugin gets viewport input through `set_input_event_forwarding_always_enabled()`.
+- The ghost isn't part of the edited scene: it's a sibling of the scene root inside the editor's scene viewport, so it shares the scene's world but never shows in the Scene dock and is never saved. Its collision objects are taken off every layer, so the placement raycasts never hit it. Placed props are hit, so you can stack them.
+- Placed nodes go under the node that was selected when placement started, or under the scene root if nothing was selected. A selection inside an instanced scene (a crate placed a moment ago, or one of its children) defers to the nearest ancestor that belongs to the edited scene itself. Nodes are added as scene instances with readable unique names (`Crate2`) and the edited scene root as owner. The selection isn't changed, so repeated clicks keep filling the same parent.
 - Every placement is one `EditorUndoRedoManager` action ("Place Crate").
 
 ### Surface hits
@@ -36,6 +36,7 @@ It is a deliberately small take on [AssetPlacer](https://cookiebadger.itch.io/as
 - **Visible meshes:** a ray-vs-triangle test against `MeshInstance3D`s in the edited scene. Rule out each instance by its global AABB first, then run `TriangleMesh.intersect_ray` in mesh-local space, caching `Mesh.generate_triangle_mesh()` per mesh. This lets you place on geometry that has no colliders.
 - A hit mode dropdown offers Colliders / Meshes / Both. The default is Both, and the nearest hit wins.
 - When nothing is hit, the ghost hides and clicks do nothing. There is no fallback plane.
+- Until align to normal lands, the asset's origin goes exactly at the hit point with no rotation, so a hit on a wall leaves the asset half inside it.
 - **Align to normal** is a toggle: the asset's up axis follows the surface normal, and yaw is applied around that normal.
 
 ### Transform helpers
@@ -67,11 +68,11 @@ Per-user settings, such as the shortcuts and the last-used toolbar values, live 
 ## Milestones
 
 1. **Libraries and drawer** (done 2026-10-23): the library resource, the dock grid with previews, drag-in from the FileSystem, remove and reorder, the switcher, the filter, remembered open libraries.
-2. **Stamping on colliders:** placement mode, the ghost, the physics raycast, click to place, undo, parenting.
+2. **Stamping on colliders** (done 2026-10-23): placement mode, the ghost, the physics raycast, click to place, undo, parenting.
 3. **Mesh hits and align to normal.**
 4. **Transform helpers:** rotate and flip shortcuts, scroll to rotate, random rotation and scale, grid snap.
 5. **Real-project adoption:** sync the addon into a game project with `tools/sync_to.sh` and build the first prop libraries.
 
 ## Testing
 
-`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. `tools/run_tests.sh` runs `test/drawer_test.gd` headlessly in two passes: libraries, drops, reordering, the filter, restoring from metadata, and moved or missing assets. Viewport interaction needs a real editor session.
+`test/test_level.tscn` has a floor, a 20° ramp, a wall and `MeshOnlyPlinth` (a mesh with no collider, for the mesh hit-test). `test/props/` holds three `.tscn` props and a `.glb`. `tools/run_tests.sh` runs `test/drawer_test.gd` headlessly in two passes: libraries, drops, reordering, the filter, restoring from metadata, and moved or missing assets. It then runs `test/placement_test.gd`, which feeds synthetic mouse and key events to the placer through a top-down camera: hovering, clicking, stacking, misses, undo and redo, parenting, Esc, and arming tiles. The project uses Jolt (the 4.6+ default); the placement test also passed under Godot Physics on 2026-10-23. A windowed editor run that sends events with `Input.parse_input_event` confirmed the plugin really receives viewport input.

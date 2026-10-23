@@ -3,6 +3,13 @@ extends VBoxContainer
 ## The drawer's contents: a toolbar for switching, creating and filtering
 ## libraries over the thumbnail grid. Keeps the open libraries in the
 ## project's editor metadata so they come back next session.
+##
+## Clicking a tile arms it for placement; clicking it again, or Esc, lets go.
+
+## A tile was clicked to place the asset at [param path].
+signal asset_armed(path: String)
+## The armed tile was let go of from the drawer.
+signal asset_disarmed
 
 const AssetGrid := preload("asset_grid.gd")
 
@@ -15,6 +22,8 @@ enum MenuItem { REMOVE, SHOW_IN_FILESYSTEM }
 
 var _libraries: Array[AssetDrawerLibrary] = []
 var _active: AssetDrawerLibrary
+## The tile being placed, if any.
+var _armed: AssetDrawerEntry
 ## Built-in previews by asset path, filled in as the previewer answers.
 var _previews: Dictionary[String, Texture2D] = {}
 var _pending_previews: Dictionary[String, bool] = {}
@@ -76,6 +85,7 @@ func _init() -> void:
 	_grid.files_dropped.connect(_on_files_dropped)
 	_grid.entries_moved.connect(_on_entries_moved)
 	_grid.delete_pressed.connect(_remove_selected)
+	_grid.escape_pressed.connect(_let_go)
 	_grid.item_clicked.connect(_on_item_clicked)
 	add_child(_grid)
 
@@ -122,6 +132,30 @@ func open_library(library: AssetDrawerLibrary) -> void:
 
 func active_library() -> AssetDrawerLibrary:
 	return _active
+
+
+func armed_entry() -> AssetDrawerEntry:
+	return _armed
+
+
+## Clears the armed tile without emitting [signal asset_disarmed], for when
+## placement ended somewhere else.
+func disarm() -> void:
+	_armed = null
+	_grid.highlight(null)
+
+
+func _arm(entry: AssetDrawerEntry) -> void:
+	_armed = entry
+	_grid.highlight(entry)
+	asset_armed.emit(entry.resolve_path())
+
+
+## Clears the armed tile and tells the plugin to stop placing.
+func _let_go() -> void:
+	if _armed != null:
+		disarm()
+		asset_disarmed.emit()
 
 
 func open_libraries() -> Array[AssetDrawerLibrary]:
@@ -288,6 +322,7 @@ func _rebuild_grid() -> void:
 	_grid.clear()
 	_grid.accepts_drops = _active != null
 	if _active == null:
+		_let_go()
 		_grid.empty_text = "Create or open a library to start."
 		return
 
@@ -305,6 +340,9 @@ func _rebuild_grid() -> void:
 		else:
 			_grid.set_item_tooltip(index, path)
 	_grid.select_entries(selected)
+	if not _active.entries.has(_armed):
+		_let_go()
+	_grid.highlight(_armed)
 
 	if not _active.entries.is_empty():
 		_grid.empty_text = "No assets match the filter."
@@ -436,6 +474,9 @@ func _remove_selected() -> void:
 
 
 func _on_item_clicked(index: int, at_position: Vector2, mouse_button_index: int) -> void:
+	if mouse_button_index == MOUSE_BUTTON_LEFT:
+		_on_tile_left_clicked(index)
+		return
 	if mouse_button_index != MOUSE_BUTTON_RIGHT:
 		return
 	var selected := _grid.get_selected_items()
@@ -444,6 +485,18 @@ func _on_item_clicked(index: int, at_position: Vector2, mouse_button_index: int)
 	_menu.position = Vector2i(_grid.get_screen_position() + at_position)
 	_menu.reset_size()
 	_menu.popup()
+
+
+## A plain click arms the tile, or lets go if it's already armed. Clicks
+## with Shift or Cmd/Ctrl only change the selection.
+func _on_tile_left_clicked(index: int) -> void:
+	if Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_META) or Input.is_key_pressed(KEY_CTRL):
+		return
+	var entry := _grid.entry_at(index)
+	if entry == _armed:
+		_let_go()
+	elif not entry.resolve_path().is_empty():
+		_arm(entry)
 
 
 func _on_menu_id_pressed(id: int) -> void:

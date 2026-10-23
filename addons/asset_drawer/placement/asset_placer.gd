@@ -202,12 +202,16 @@ func place(global_xform: Transform3D) -> Node3D:
 	var node := _scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE) as Node3D
 	node.scene_file_path = _scene_path
 	var parent_3d := _parent as Node3D
-	node.transform = parent_3d.global_transform.affine_inverse() * global_xform \
+	var local_xform := parent_3d.global_transform.affine_inverse() * global_xform \
 			if parent_3d != null else global_xform
+	node.transform = local_xform
 
 	undo_redo.create_action("Place %s" % node.name, UndoRedo.MERGE_DISABLE, root)
 	undo_redo.add_do_method(_parent, &"add_child", node, true)
 	undo_redo.add_do_method(node, &"set_owner", root)
+	# Set the transform again once the node is in the scene: some addons
+	# (the 3D Cursor, for one) move every node that enters the tree.
+	undo_redo.add_do_property(node, &"transform", local_xform)
 	undo_redo.add_do_reference(node)
 	undo_redo.add_undo_method(_parent, &"remove_child", node)
 	undo_redo.commit_action()

@@ -63,6 +63,8 @@ A library is an `AssetDrawerLibrary` resource: a tree of `AssetDrawerFolder`s, e
 
 Thumbnails are rendered in an offscreen viewport and cached as PNGs in `.godot/editor/asset_drawer_thumbnails/`, keyed by the asset's modified time. An edited asset re-renders on its own; a change to only a texture it uses doesn't move that time, so the tile's context menu has **Regenerate Thumbnail**.
 
+The thumbnail camera looks at an asset's +Z side, the way imported models face. An asset built to face -Z, like a character that moves along its forward, shows its back; **Turn Thumbnail Left** and **Turn Thumbnail Right** in the tile's context menu turn it a quarter turn at a time. The turn is saved with the entry in the library, so it only changes the picture, never the placed copies.
+
 ## Known limitations
 
 - Mesh hits only test `MeshInstance3D`s. CSG, MultiMesh and GridMap geometry isn't tested, and skinned meshes are tested in their rest pose. There is no placement plane or fallback when nothing is hit, and no Terrain3D support.

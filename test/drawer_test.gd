@@ -161,6 +161,25 @@ func _run_one() -> void:
 	menu.hide()
 	_grid.call("deselect_all")
 
+	# Turning thumbnails from the tile menu (3 is Turn Left, 4 Turn Right).
+	_grid.call("select", 0)
+	var turned: AssetDrawerEntry = _grid.call("entry_at", 0)
+	_panel.call("_on_menu_id_pressed", 4)
+	_panel.call("_on_menu_id_pressed", 4)
+	_check("two right turns show the back", turned.thumbnail_turn == 180, turned.thumbnail_turn)
+	for i: int in 3:
+		_panel.call("_on_menu_id_pressed", 3)
+	_check("left turns wrap round", turned.thumbnail_turn == 270, turned.thumbnail_turn)
+	var turned_on_disk: AssetDrawerLibrary = ResourceLoader.load(LIB_A, "", ResourceLoader.CACHE_MODE_IGNORE)
+	_check("the turn is saved with the entry", turned_on_disk.find_uid(turned.uid).thumbnail_turn == 270)
+	var thumbnails: Variant = _panel.get("_thumbnails")
+	var turned_path := turned.resolve_path()
+	_check("a turned thumbnail is cached apart", thumbnails.call("_cache_file", turned_path, 0)
+			!= thumbnails.call("_cache_file", turned_path, 270))
+	_panel.call("_on_menu_id_pressed", 4)
+	_check("a full circle is back to unturned", turned.thumbnail_turn == 0, turned.thumbnail_turn)
+	_grid.call("deselect_all")
+
 	var on_disk: Variant = ResourceLoader.load(LIB_A, "", ResourceLoader.CACHE_MODE_IGNORE)
 	_check("saved to disk", _lib_names(on_disk) == PackedStringArray(["rock", "crate", "barrel"]), _lib_names(on_disk))
 

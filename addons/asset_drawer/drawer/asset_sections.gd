@@ -13,7 +13,7 @@ signal delete_pressed
 signal escape_pressed
 signal tile_clicked(grid: AssetGrid, index: int, at_position: Vector2, mouse_button_index: int)
 
-## Gives a tile its icon from an asset path (empty when it's missing).
+## Gives a tile its icon from its AssetDrawerEntry.
 var icon_for: Callable
 
 var _column: VBoxContainer
@@ -96,11 +96,15 @@ func highlight(entry: AssetDrawerEntry) -> void:
 		grid.highlight(entry)
 
 
-func set_icon(path: String, icon: Texture2D) -> void:
+## Shows [param icon] on the tiles for the asset at [param path] whose
+## thumbnail is turned [param turn] degrees, so a render from before a turn
+## doesn't land on a tile that has since been turned.
+func set_icon(path: String, turn: int, icon: Texture2D) -> void:
 	var uid := ResourceUID.path_to_uid(path)
 	for grid: AssetGrid in _grids:
 		for index: int in grid.item_count:
-			if grid.entry_at(index).uid == uid:
+			var entry := grid.entry_at(index)
+			if entry.uid == uid and entry.thumbnail_turn == turn:
 				grid.set_item_icon(index, icon)
 
 
@@ -142,7 +146,7 @@ func _matching(entries: Array[AssetDrawerEntry], needle: String) -> Array[AssetD
 func _fill(grid: AssetGrid, entries: Array[AssetDrawerEntry]) -> void:
 	for entry: AssetDrawerEntry in entries:
 		var path := entry.resolve_path()
-		var index := grid.add_item(entry.display_name(), icon_for.call(path) as Texture2D)
+		var index := grid.add_item(entry.display_name(), icon_for.call(entry) as Texture2D)
 		grid.set_item_metadata(index, entry)
 		if path.is_empty():
 			grid.set_item_tooltip(index, "Missing: %s\n%s" % [entry.last_path, entry.uid])

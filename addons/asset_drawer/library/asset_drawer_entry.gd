@@ -10,6 +10,10 @@ extends Resource
 @export var uid: String = ""
 ## Where the asset was last seen, shown when the uid no longer resolves.
 @export var last_path: String = ""
+## How far the asset is turned around Y for its thumbnail, in degrees. The
+## thumbnail camera looks at the +Z side, so an asset that faces -Z (as
+## nodes that move along their forward do) shows its front at 180.
+@export_range(0, 270, 90, "degrees") var thumbnail_turn: int = 0
 
 
 static func from_path(path: String) -> AssetDrawerEntry:
@@ -23,6 +27,13 @@ static func from_path(path: String) -> AssetDrawerEntry:
 func resolve_path() -> String:
 	var path := ResourceUID.ensure_path(uid)
 	return path if path.begins_with("res://") and ResourceLoader.exists(path) else ""
+
+
+## Turns the thumbnail a quarter turn, [param quarters] times: positive
+## swings the asset's front to the right of the tile, negative to the left.
+func turn_thumbnail(quarters: int) -> void:
+	thumbnail_turn = posmod(thumbnail_turn + quarters * 90, 360)
+	emit_changed()
 
 
 ## The file name without its extension, from the last known path if missing.

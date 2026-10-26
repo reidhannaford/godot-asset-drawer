@@ -3,11 +3,13 @@ extends Node
 ## Renders asset thumbnails one at a time in an offscreen viewport: its own
 ## world with its own lights on a transparent background, and a
 ## three-quarter camera framed to the asset's visible bounds, so editor
-## gizmos never show and every tile is framed the same way. Thumbnails are
+## gizmos never show and every tile is framed the same way. An asset can be
+## turned around Y first, for one whose front isn't +Z. Thumbnails are
 ## cached as PNGs in the project's .godot folder, keyed by the asset file's
-## (and its .import file's) modified time, so they re-render when it changes.
+## (and its .import file's) modified time and the turn, so they re-render
+## when either changes.
 
-signal thumbnail_ready(path: String, texture: Texture2D)
+signal thumbnail_ready(path: String, turn: int, texture: Texture2D)
 
 const SIZE := 256
 const FOV_DEGREES := 30.0
@@ -21,7 +23,8 @@ var _camera: Camera3D
 var _stage: Node3D
 var _cache_dir: String = ""
 var _textures: Dictionary[String, Texture2D] = {}
-var _queue: Array[String] = []
+## Waiting renders, each {"path": String, "turn": int}.
+var _queue: Array[Dictionary] = []
 var _busy: bool = false
 ## Off without a real display (a headless editor never draws a frame), or
 ## once a render comes back empty.
@@ -83,10 +86,11 @@ func _exit_tree() -> void:
 		child.free()
 
 
-## The thumbnail for the asset at [param path] if it's rendered and current,
-## loading it from the disk cache when needed; null otherwise.
-func cached(path: String) -> Texture2D:
-	var file := _cache_file(path)
+## The thumbnail for the asset at [param path], turned [param turn] degrees,
+## if it's rendered and current, loading it from the disk cache when needed;
+## null otherwise.
+func cached(path: String, turn: int = 0) -> Texture2D:
+	var file := _cache_file(path, turn)
 	if _textures.has(file):
 		return _textures[file]
 	if not FileAccess.file_exists(file):
@@ -99,43 +103,47 @@ func cached(path: String) -> Texture2D:
 	return texture
 
 
-## Queues the asset at [param path] for rendering, unless it's cached or
-## already queued. [signal thumbnail_ready] fires when it's done.
-func request(path: String) -> void:
-	if not _can_render or _queue.has(path) or cached(path) != null:
+## Queues the asset at [param path], turned [param turn] degrees around Y,
+## for rendering, unless it's cached or already queued.
+## [signal thumbnail_ready] fires when it's done.
+func request(path: String, turn: int = 0) -> void:
+	var job := {"path": path, "turn": turn}
+	if not _can_render or _queue.has(job) or cached(path, turn) != null:
 		return
-	_queue.append(path)
+	_queue.append(job)
 	if not _busy:
 		_pump()
 
 
 ## Throws away the asset's cached thumbnail and renders it again.
-func regenerate(path: String) -> void:
-	var file := _cache_file(path)
+func regenerate(path: String, turn: int = 0) -> void:
+	var file := _cache_file(path, turn)
 	_textures.erase(file)
 	DirAccess.remove_absolute(file)
-	request(path)
+	request(path, turn)
 
 
 func _pump() -> void:
 	_busy = true
 	while not _queue.is_empty() and is_inside_tree():
-		var path: String = _queue.pop_front()
-		var image := await _render(path)
+		var job: Dictionary = _queue.pop_front()
+		var path: String = job["path"]
+		var turn: int = job["turn"]
+		var image := await _render(path, turn)
 		if not is_inside_tree():
 			break
 		if image == null:
 			continue
 		_forget_older(path)
-		var file := _cache_file(path)
+		var file := _cache_file(path, turn)
 		image.save_png(file)
 		var texture := ImageTexture.create_from_image(image)
 		_textures[file] = texture
-		thumbnail_ready.emit(path, texture)
+		thumbnail_ready.emit(path, turn, texture)
 	_busy = false
 
 
-func _render(path: String) -> Image:
+func _render(path: String, turn: int) -> Image:
 	var scene := ResourceLoader.load(path) as PackedScene
 	if scene == null:
 		return null
@@ -143,6 +151,7 @@ func _render(path: String) -> Image:
 	if not instance is Node3D:
 		instance.free()
 		return null
+	(instance as Node3D).rotate_y(deg_to_rad(turn))
 	_strip(instance)
 	_stage.add_child(instance)
 	# Let CSG and other deferred geometry build before measuring it. Tool
@@ -224,11 +233,15 @@ func _frame(bounds: AABB) -> void:
 
 
 ## The PNG for the asset's current version: named after the asset, plus a
-## hash of its modified times so an edited asset gets a new file.
-func _cache_file(path: String) -> String:
+## hash of its modified times and turn so an edited or turned asset gets a
+## new file.
+func _cache_file(path: String, turn: int) -> String:
 	var import_file := path + ".import"
 	var imported := FileAccess.get_modified_time(import_file) if FileAccess.file_exists(import_file) else 0
 	var stamp := "%s:%d:%d" % [path, FileAccess.get_modified_time(path), imported]
+	# Unturned thumbnails keep the names they had before turns existed.
+	if turn != 0:
+		stamp += ":%d" % turn
 	return _cache_dir.path_join("%s_%s.png" % [_asset_key(path), stamp.md5_text().left(10)])
 
 

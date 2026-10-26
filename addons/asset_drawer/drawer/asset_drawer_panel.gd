@@ -23,7 +23,7 @@ const MIN_THUMBNAIL := 32
 const MAX_THUMBNAIL := 192
 const NEW_FOLDER_NAME := "New Folder"
 
-enum MenuItem { REMOVE, SHOW_IN_FILESYSTEM, REGENERATE_THUMBNAIL }
+enum MenuItem { REMOVE, SHOW_IN_FILESYSTEM, REGENERATE_THUMBNAIL, TURN_THUMBNAIL_LEFT, TURN_THUMBNAIL_RIGHT }
 
 var _libraries: Array[AssetDrawerLibrary] = []
 var _active: AssetDrawerLibrary
@@ -132,6 +132,8 @@ func _init() -> void:
 	_menu.add_item("Remove from Library", MenuItem.REMOVE)
 	_menu.add_item("Show in FileSystem", MenuItem.SHOW_IN_FILESYSTEM)
 	_menu.add_item("Regenerate Thumbnail", MenuItem.REGENERATE_THUMBNAIL)
+	_menu.add_item("Turn Thumbnail Left", MenuItem.TURN_THUMBNAIL_LEFT)
+	_menu.add_item("Turn Thumbnail Right", MenuItem.TURN_THUMBNAIL_RIGHT)
 	_menu.id_pressed.connect(_on_menu_id_pressed)
 	add_child(_menu)
 
@@ -162,6 +164,10 @@ func _notification(what: int) -> void:
 				get_theme_icon(&"ShowInFileSystem", &"EditorIcons"))
 		_menu.set_item_icon(_menu.get_item_index(MenuItem.REGENERATE_THUMBNAIL),
 				get_theme_icon(&"Reload", &"EditorIcons"))
+		_menu.set_item_icon(_menu.get_item_index(MenuItem.TURN_THUMBNAIL_LEFT),
+				get_theme_icon(&"RotateLeft", &"EditorIcons"))
+		_menu.set_item_icon(_menu.get_item_index(MenuItem.TURN_THUMBNAIL_RIGHT),
+				get_theme_icon(&"RotateRight", &"EditorIcons"))
 		if is_node_ready():
 			_refresh()
 
@@ -462,13 +468,14 @@ func _rebuild_grid() -> void:
 	_sections.highlight(_armed)
 
 
-func _icon_for(path: String) -> Texture2D:
+func _icon_for(entry: AssetDrawerEntry) -> Texture2D:
+	var path := entry.resolve_path()
 	if path.is_empty():
 		return get_theme_icon(&"FileBroken", &"EditorIcons")
-	var thumbnail := _thumbnails.cached(path)
+	var thumbnail := _thumbnails.cached(path, entry.thumbnail_turn)
 	if thumbnail != null:
 		return thumbnail
-	_thumbnails.request(path)
+	_thumbnails.request(path, entry.thumbnail_turn)
 	return get_theme_icon(&"PackedScene", &"EditorIcons")
 
 
@@ -627,4 +634,28 @@ func _on_menu_id_pressed(id: int) -> void:
 			for entry: AssetDrawerEntry in _sections.selected_entries():
 				var path := entry.resolve_path()
 				if not path.is_empty():
-					_thumbnails.regenerate(path)
+					_thumbnails.regenerate(path, entry.thumbnail_turn)
+		MenuItem.TURN_THUMBNAIL_LEFT:
+			_turn_thumbnails(-1)
+		MenuItem.TURN_THUMBNAIL_RIGHT:
+			_turn_thumbnails(1)
+
+
+## Turns the selected tiles' thumbnails a quarter turn, [param quarters]
+## times, for assets that don't face +Z. Each tile keeps its old picture
+## until the turned one is rendered.
+func _turn_thumbnails(quarters: int) -> void:
+	var selected := _sections.selected_entries()
+	if selected.is_empty():
+		return
+	for entry: AssetDrawerEntry in selected:
+		entry.turn_thumbnail(quarters)
+		var path := entry.resolve_path()
+		if path.is_empty():
+			continue
+		var thumbnail := _thumbnails.cached(path, entry.thumbnail_turn)
+		if thumbnail != null:
+			_sections.set_icon(path, entry.thumbnail_turn, thumbnail)
+		else:
+			_thumbnails.request(path, entry.thumbnail_turn)
+	_save_active()

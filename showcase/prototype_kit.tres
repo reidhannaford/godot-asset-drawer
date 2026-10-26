@@ -1,0 +1,264 @@
+[gd_resource type="Resource" script_class="AssetDrawerLibrary" format=3 uid="uid://cv50qjjtxkt0g"]
+
+[ext_resource type="Script" uid="uid://bj4rxgh5ofmrs" path="res://addons/asset_drawer/library/asset_drawer_entry.gd" id="1_eynu5"]
+[ext_resource type="Script" uid="uid://ebefc1gcngw8" path="res://addons/asset_drawer/library/asset_drawer_folder.gd" id="2_i6gpp"]
+[ext_resource type="Script" uid="uid://4mvbvj7wn82o" path="res://addons/asset_drawer/library/asset_drawer_library.gd" id="3_8bufa"]
+
+[sub_resource type="Resource" id="Resource_eynu5"]
+script = ExtResource("1_eynu5")
+uid = "uid://bxhp4u63q5s2i"
+last_path = "res://showcase/kenney_prototype_kit/wall.glb"
+
+[sub_resource type="Resource" id="Resource_i6gpp"]
+script = ExtResource("1_eynu5")
+uid = "uid://6yuwtbkmi12n"
+last_path = "res://showcase/kenney_prototype_kit/wall-window-medium.glb"
+
+[sub_resource type="Resource" id="Resource_8bufa"]
+script = ExtResource("1_eynu5")
+uid = "uid://c73i4fmmciv7w"
+last_path = "res://showcase/kenney_prototype_kit/wall-doorway.glb"
+
+[sub_resource type="Resource" id="Resource_wljni"]
+script = ExtResource("1_eynu5")
+uid = "uid://dfh4ijl2wlucl"
+last_path = "res://showcase/kenney_prototype_kit/wall-low.glb"
+
+[sub_resource type="Resource" id="Resource_b64vn"]
+script = ExtResource("1_eynu5")
+uid = "uid://cmbc2v5b1fp4i"
+last_path = "res://showcase/kenney_prototype_kit/wall-corner.glb"
+
+[sub_resource type="Resource" id="Resource_u4u0x"]
+script = ExtResource("1_eynu5")
+uid = "uid://cswmegt8c7s6q"
+last_path = "res://showcase/kenney_prototype_kit/wall-round.glb"
+
+[sub_resource type="Resource" id="Resource_3qut5"]
+script = ExtResource("1_eynu5")
+uid = "uid://hdj13v4ewqwq"
+last_path = "res://showcase/kenney_prototype_kit/column.glb"
+
+[sub_resource type="Resource" id="Resource_i5ux8"]
+script = ExtResource("1_eynu5")
+uid = "uid://mf1n477iqdeu"
+last_path = "res://showcase/kenney_prototype_kit/column-rounded.glb"
+
+[sub_resource type="Resource" id="Resource_f0ang"]
+script = ExtResource("1_eynu5")
+uid = "uid://5ix0igqvf2aw"
+last_path = "res://showcase/kenney_prototype_kit/floor-thick.glb"
+
+[sub_resource type="Resource" id="Resource_kwf65"]
+script = ExtResource("1_eynu5")
+uid = "uid://cv0uaa44nwpf6"
+last_path = "res://showcase/kenney_prototype_kit/floor-square.glb"
+
+[sub_resource type="Resource" id="Resource_yyti3"]
+script = ExtResource("1_eynu5")
+uid = "uid://s3oyj17dsu55"
+last_path = "res://showcase/kenney_prototype_kit/stairs.glb"
+
+[sub_resource type="Resource" id="Resource_5bfik"]
+script = ExtResource("1_eynu5")
+uid = "uid://vr76im7becxv"
+last_path = "res://showcase/kenney_prototype_kit/stairs-small.glb"
+
+[sub_resource type="Resource" id="Resource_bg6sd"]
+script = ExtResource("1_eynu5")
+uid = "uid://n6xdffdp6at6"
+last_path = "res://showcase/kenney_prototype_kit/shape-slope.glb"
+
+[sub_resource type="Resource" id="Resource_ig4d8"]
+script = ExtResource("2_i6gpp")
+name = "Structures"
+entries = Array[ExtResource("1_eynu5")]([SubResource("Resource_eynu5"), SubResource("Resource_i6gpp"), SubResource("Resource_8bufa"), SubResource("Resource_wljni"), SubResource("Resource_b64vn"), SubResource("Resource_u4u0x"), SubResource("Resource_3qut5"), SubResource("Resource_i5ux8"), SubResource("Resource_f0ang"), SubResource("Resource_kwf65"), SubResource("Resource_yyti3"), SubResource("Resource_5bfik"), SubResource("Resource_bg6sd")])
+
+[sub_resource type="Resource" id="Resource_4bqhm"]
+script = ExtResource("1_eynu5")
+uid = "uid://bt8h7mj8hs3ii"
+last_path = "res://showcase/kenney_prototype_kit/crate.glb"
+
+[sub_resource type="Resource" id="Resource_3mwk3"]
+script = ExtResource("1_eynu5")
+uid = "uid://dybhihvps2d3s"
+last_path = "res://showcase/kenney_prototype_kit/crate-color.glb"
+
+[sub_resource type="Resource" id="Resource_6220i"]
+script = ExtResource("1_eynu5")
+uid = "uid://c46g62eoh0fu2"
+last_path = "res://showcase/kenney_prototype_kit/flag.glb"
+
+[sub_resource type="Resource" id="Resource_so1yv"]
+script = ExtResource("1_eynu5")
+uid = "uid://bgxb4r8h8q5mk"
+last_path = "res://showcase/kenney_prototype_kit/target-a-round.glb"
+
+[sub_resource type="Resource" id="Resource_curs8"]
+script = ExtResource("1_eynu5")
+uid = "uid://csei42831rqbs"
+last_path = "res://showcase/kenney_prototype_kit/weapon-sword.glb"
+
+[sub_resource type="Resource" id="Resource_wjdlx"]
+script = ExtResource("1_eynu5")
+uid = "uid://b06cf4kymmgl0"
+last_path = "res://showcase/kenney_prototype_kit/coin.glb"
+
+[sub_resource type="Resource" id="Resource_dg7xf"]
+script = ExtResource("1_eynu5")
+uid = "uid://cfbujwk36y2c0"
+last_path = "res://showcase/kenney_prototype_kit/ladder.glb"
+
+[sub_resource type="Resource" id="Resource_i7j3t"]
+script = ExtResource("1_eynu5")
+uid = "uid://5saadg4336qq"
+last_path = "res://showcase/kenney_prototype_kit/door-rotate.glb"
+
+[sub_resource type="Resource" id="Resource_j8ff0"]
+script = ExtResource("1_eynu5")
+uid = "uid://cbgbh4gyjhbeu"
+last_path = "res://showcase/kenney_prototype_kit/lever-single.glb"
+
+[sub_resource type="Resource" id="Resource_u41fo"]
+script = ExtResource("1_eynu5")
+uid = "uid://chh2gmbktnpbu"
+last_path = "res://showcase/kenney_prototype_kit/button-floor-square.glb"
+
+[sub_resource type="Resource" id="Resource_02y8c"]
+script = ExtResource("1_eynu5")
+uid = "uid://byiipbyv4uls2"
+last_path = "res://showcase/kenney_prototype_kit/pipe.glb"
+
+[sub_resource type="Resource" id="Resource_w7nnq"]
+script = ExtResource("1_eynu5")
+uid = "uid://6q7qso0huxvh"
+last_path = "res://showcase/kenney_prototype_kit/pipe-corner.glb"
+
+[sub_resource type="Resource" id="Resource_jwp0j"]
+script = ExtResource("1_eynu5")
+uid = "uid://b7fnwgavqak2r"
+last_path = "res://showcase/kenney_prototype_kit/weapon-shield.glb"
+
+[sub_resource type="Resource" id="Resource_4paii"]
+script = ExtResource("1_eynu5")
+uid = "uid://bhunp63cw22oa"
+last_path = "res://showcase/kenney_prototype_kit/hat-cap.glb"
+
+[sub_resource type="Resource" id="Resource_yrbw7"]
+script = ExtResource("2_i6gpp")
+name = "Props"
+entries = Array[ExtResource("1_eynu5")]([SubResource("Resource_4bqhm"), SubResource("Resource_3mwk3"), SubResource("Resource_6220i"), SubResource("Resource_so1yv"), SubResource("Resource_curs8"), SubResource("Resource_wjdlx"), SubResource("Resource_dg7xf"), SubResource("Resource_i7j3t"), SubResource("Resource_j8ff0"), SubResource("Resource_u41fo"), SubResource("Resource_02y8c"), SubResource("Resource_w7nnq"), SubResource("Resource_jwp0j"), SubResource("Resource_4paii")])
+
+[sub_resource type="Resource" id="Resource_thkq0"]
+script = ExtResource("1_eynu5")
+uid = "uid://bnpbcu8mcxcur"
+last_path = "res://showcase/kenney_prototype_kit/shape-cube.glb"
+
+[sub_resource type="Resource" id="Resource_3xtui"]
+script = ExtResource("1_eynu5")
+uid = "uid://dmwkf1ah5q4tn"
+last_path = "res://showcase/kenney_prototype_kit/shape-cylinder.glb"
+
+[sub_resource type="Resource" id="Resource_b2tf5"]
+script = ExtResource("1_eynu5")
+uid = "uid://dnjxe3ia5sinv"
+last_path = "res://showcase/kenney_prototype_kit/shape-hexagon.glb"
+
+[sub_resource type="Resource" id="Resource_qnbk5"]
+script = ExtResource("1_eynu5")
+uid = "uid://c3fxm5xcwjf2v"
+last_path = "res://showcase/kenney_prototype_kit/shape-hollow-cylinder.glb"
+
+[sub_resource type="Resource" id="Resource_74gqn"]
+script = ExtResource("2_i6gpp")
+name = "Shapes"
+entries = Array[ExtResource("1_eynu5")]([SubResource("Resource_thkq0"), SubResource("Resource_3xtui"), SubResource("Resource_b2tf5"), SubResource("Resource_qnbk5")])
+
+[sub_resource type="Resource" id="Resource_fpxqj"]
+script = ExtResource("1_eynu5")
+uid = "uid://du21k1jryxsu2"
+last_path = "res://showcase/kenney_prototype_kit/figurine.glb"
+
+[sub_resource type="Resource" id="Resource_iw8l7"]
+script = ExtResource("1_eynu5")
+uid = "uid://3un0t5ji355a"
+last_path = "res://showcase/kenney_prototype_kit/figurine-large.glb"
+
+[sub_resource type="Resource" id="Resource_oc6lm"]
+script = ExtResource("1_eynu5")
+uid = "uid://dbfeluutbhmmk"
+last_path = "res://showcase/kenney_prototype_kit/figurine-cube.glb"
+
+[sub_resource type="Resource" id="Resource_7ry6q"]
+script = ExtResource("1_eynu5")
+uid = "uid://c1dbf2bnr1har"
+last_path = "res://showcase/kenney_prototype_kit/animal-dog.glb"
+
+[sub_resource type="Resource" id="Resource_js5x7"]
+script = ExtResource("1_eynu5")
+uid = "uid://dd8ldkc2s570p"
+last_path = "res://showcase/kenney_prototype_kit/animal-horse.glb"
+
+[sub_resource type="Resource" id="Resource_yqsfu"]
+script = ExtResource("1_eynu5")
+uid = "uid://cfxyom2k7i2w8"
+last_path = "res://showcase/kenney_prototype_kit/animal-bison.glb"
+
+[sub_resource type="Resource" id="Resource_01a8n"]
+script = ExtResource("1_eynu5")
+uid = "uid://bsc78yhrfeqen"
+last_path = "res://showcase/kenney_prototype_kit/vehicle.glb"
+
+[sub_resource type="Resource" id="Resource_mgprk"]
+script = ExtResource("1_eynu5")
+uid = "uid://d1j7ltm2anxmd"
+last_path = "res://showcase/kenney_prototype_kit/vehicle-convertible.glb"
+
+[sub_resource type="Resource" id="Resource_8k2wm"]
+script = ExtResource("2_i6gpp")
+name = "Characters"
+entries = Array[ExtResource("1_eynu5")]([SubResource("Resource_fpxqj"), SubResource("Resource_iw8l7"), SubResource("Resource_oc6lm"), SubResource("Resource_7ry6q"), SubResource("Resource_js5x7"), SubResource("Resource_yqsfu"), SubResource("Resource_01a8n"), SubResource("Resource_mgprk")])
+
+[sub_resource type="Resource" id="Resource_fc4lx"]
+script = ExtResource("1_eynu5")
+uid = "uid://bemtij83q7c2d"
+last_path = "res://showcase/kenney_prototype_kit/indicator-round-a.glb"
+
+[sub_resource type="Resource" id="Resource_5rqh7"]
+script = ExtResource("1_eynu5")
+uid = "uid://rxbovd6atkpr"
+last_path = "res://showcase/kenney_prototype_kit/indicator-square-a.glb"
+
+[sub_resource type="Resource" id="Resource_wqtvd"]
+script = ExtResource("1_eynu5")
+uid = "uid://qikye0iwa1y2"
+last_path = "res://showcase/kenney_prototype_kit/indicator-special-arrow.glb"
+
+[sub_resource type="Resource" id="Resource_6brtd"]
+script = ExtResource("1_eynu5")
+uid = "uid://bsl80tgyjnen8"
+last_path = "res://showcase/kenney_prototype_kit/indicator-special-cross.glb"
+
+[sub_resource type="Resource" id="Resource_nyvfw"]
+script = ExtResource("1_eynu5")
+uid = "uid://cf36tpx6w7v7b"
+last_path = "res://showcase/kenney_prototype_kit/number-1.glb"
+
+[sub_resource type="Resource" id="Resource_xue1w"]
+script = ExtResource("1_eynu5")
+uid = "uid://dwdbf6j6e4j5s"
+last_path = "res://showcase/kenney_prototype_kit/number-2.glb"
+
+[sub_resource type="Resource" id="Resource_veg0c"]
+script = ExtResource("1_eynu5")
+uid = "uid://c5mf1ob6xvkfk"
+last_path = "res://showcase/kenney_prototype_kit/number-3.glb"
+
+[sub_resource type="Resource" id="Resource_02kci"]
+script = ExtResource("2_i6gpp")
+name = "Markers"
+entries = Array[ExtResource("1_eynu5")]([SubResource("Resource_fc4lx"), SubResource("Resource_5rqh7"), SubResource("Resource_wqtvd"), SubResource("Resource_6brtd"), SubResource("Resource_nyvfw"), SubResource("Resource_xue1w"), SubResource("Resource_veg0c")])
+
+[resource]
+script = ExtResource("3_8bufa")
+folders = Array[ExtResource("2_i6gpp")]([SubResource("Resource_ig4d8"), SubResource("Resource_yrbw7"), SubResource("Resource_74gqn"), SubResource("Resource_8k2wm"), SubResource("Resource_02kci")])

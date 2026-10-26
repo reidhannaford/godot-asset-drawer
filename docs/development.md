@@ -6,6 +6,7 @@ Everything a contributor needs that isn't obvious from the code: the layout, how
 
 - `addons/asset_drawer/`: the addon. The only folder another project needs. Scripts are grouped by feature: `library/` (the resources), `drawer/` (the dock), `placement/` (the ghost, the raycasts, the toolbar and shortcuts), and `plugin.gd`, the only file that knows about all three.
 - `test/`: a test level (a floor, a 20° ramp, a wall and a mesh with no collider), four props, and the two headless test scripts.
+- `showcase/`: the level and library the README images are recorded in, built from a subset of Kenney's CC0 Prototype Kit by `tools/build_showcase.gd`. Left out of release archives by `.gitattributes`.
 - `tools/run_tests.sh`: runs the tests. `tools/sync_to.sh <project>`: copies the addon into another project, replacing any older copy.
 - `docs/`: this file, the design notes, and the README images.
 

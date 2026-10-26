@@ -2,7 +2,7 @@
 
 A small Godot 4.7+ editor addon for level building. Organize scenes and models into libraries, pick one from a thumbnail drawer, and click to stamp copies onto colliders or visible meshes in the 3D viewport.
 
-![The Assets dock under the 3D viewport, with a library of props and a crate armed for placement](docs/images/drawer.png)
+![Placing crates from the Assets dock with Align on: each copy tilts to the ramp or rests on the copy below it](docs/images/placing.gif)
 
 **Status: alpha (0.1.0).** It's in daily use on one game project and has a headless test suite, but the library format, the toolbar and the default keys may still change before 1.0. Issues and pull requests are welcome; please say which Godot version and platform you're on.
 
@@ -77,7 +77,7 @@ The thumbnail camera looks at an asset's +Z side, the way imported models face. 
 
 ## Development
 
-`tools/run_tests.sh` runs the headless drawer and placement tests. [docs/development.md](docs/development.md) covers the layout, the conventions, the warnings pass and the headless-editor gotchas; [docs/design.md](docs/design.md) is the design record, with what's in and out of scope and why.
+`tools/run_tests.sh` runs the headless drawer and placement tests. `showcase/` holds the level and library the README images were recorded in: open `showcase/showcase_level.tscn` and the `prototype_kit` library to try the drawer on real models. [docs/development.md](docs/development.md) covers the layout, the conventions, the warnings pass and the headless-editor gotchas; [docs/design.md](docs/design.md) is the design record, with what's in and out of scope and why.
 
 ## AI disclosure
 
@@ -86,3 +86,5 @@ AI assists in the making of this project. Code, tests and docs are drafted with 
 ## License
 
 [MIT](LICENSE).
+
+The models in `showcase/kenney_prototype_kit/` are from Kenney's [Prototype Kit](https://kenney.nl/assets/prototype-kit), CC0; its licence file is beside them. They aren't part of the addon, and release archives leave them out.

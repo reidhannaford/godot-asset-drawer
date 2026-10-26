@@ -51,7 +51,7 @@ gdscript/warnings/unsafe_call_argument=2
 gdscript/warnings/return_value_discarded=2
 ```
 
-then run a `-s` script that `load()`s each `addons/asset_drawer/**/*.gd` with `ResourceLoader.CACHE_MODE_IGNORE` and prints `can_instantiate()`. All of them must load. Delete `override.cfg` straight after; it's not ignored by git. As of 0.1.0 the addon passes with every one of those at error level.
+then run a `-s` script that `load()`s each `addons/asset_drawer/**/*.gd` with `ResourceLoader.CACHE_MODE_IGNORE` and prints `can_instantiate()`. All of them must load. Delete `override.cfg` straight after; it's not ignored by git. As of 0.2.0 the addon passes with every one of those at error level.
 
 ## Headless editor gotchas
 
@@ -93,5 +93,6 @@ copies `addons/asset_drawer/` over, deleting stale files. Edit here, then sync; 
 
 1. Bump `version` in `addons/asset_drawer/plugin.cfg` and add the entry to `CHANGELOG.md`.
 2. Run `tools/run_tests.sh` and the warnings pass.
-3. Commit, tag `vX.Y.Z` and push the tag; make a GitHub release from it, which is the zip the Asset Library points at.
-4. For the Asset Library listing: category Tools, Godot version 4.7, licence MIT, the icon at `icon.svg`, and a screenshot from `docs/images/`. Submitting a new version is a new submission against the same listing with the new tag.
+3. Check the archive holds only the addon, `README.md`, `LICENSE` and `CHANGELOG.md`: `git archive HEAD | tar -t`. Everything else is `export-ignore` in `.gitattributes`, because the Asset Library installs the zip's files into the user's project.
+4. Commit, tag `vX.Y.Z` and push the tag; make a GitHub release from it, which is the zip the Asset Library points at.
+5. For the Asset Library listing: category Tools, Godot version 4.7, licence MIT, the icon at `icon.svg`, and a screenshot from `docs/images/`. Submitting a new version is a new submission against the same listing with the new tag.

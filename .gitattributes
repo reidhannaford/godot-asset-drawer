@@ -1,4 +1,15 @@
 * text=auto eol=lf
 *.glb binary
 *.png binary
-showcase/ export-ignore
+
+# Release archives (the GitHub zip the Asset Library installs) hold only the
+# addon, the README, the licence and the changelog.
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/project.godot export-ignore
+/icon.svg export-ignore
+/icon.svg.import export-ignore
+/docs/ export-ignore
+/test/ export-ignore
+/tools/ export-ignore
+/showcase/ export-ignore

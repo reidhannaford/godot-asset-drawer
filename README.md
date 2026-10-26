@@ -4,7 +4,7 @@ A small Godot 4.7+ editor addon for level building. Organize scenes and models i
 
 ![Placing crates from the Assets dock with Align on: each copy tilts to the ramp or rests on the copy below it](docs/images/placing.gif)
 
-**Status: alpha (0.1.0).** It's in daily use on one game project and has a headless test suite, but the library format, the toolbar and the default keys may still change before 1.0. Issues and pull requests are welcome; please say which Godot version and platform you're on.
+**Status: alpha (0.2.0).** It's in daily use on one game project and has a headless test suite, but the library format, the toolbar and the default keys may still change before 1.0. Issues and pull requests are welcome; please say which Godot version and platform you're on.
 
 ## What it does
 

@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (alpha), 2026-10-26
 
 - **Turn Thumbnail Left** and **Turn Thumbnail Right** in a tile's context menu turn its thumbnail a quarter turn, for assets that face -Z and showed their backs. The turn is saved with the library entry.
 - Placed copies rest on the surface by their visible bounds, as the editor's own drag and drop does, so an asset with a centred origin no longer sinks halfway in. Tipped assets lift by their half-width, and upright assets on a wall stand off it by their depth.
 - A new folder opens for renaming right away. The rename box used to open empty and off the row, because the tree hadn't drawn the new item yet.
 - Double-clicking a folder renames it.
+- The release zip holds only the addon, the README, the licence and this changelog. Earlier zips also carried the test project (`project.godot`, `test/`, `tools/`, `docs/`), which the Asset Library would install into your project.
 
 ## 0.1.0 (alpha), 2026-10-23
 
